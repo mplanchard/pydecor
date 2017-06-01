@@ -19,11 +19,13 @@ log = getLogger(__name__)
 DecoratorType = Union[FunctionType, MethodType, type]
 
 
-def before(func, unpack_kwargs=True, **decorator_kwargs):
+def before(func, unpack=True, key='decorator_kwargs',
+           **decorator_kwargs):
     """Specify a callable to be run before the decorated resource
     
     :param func: 
-    :param unpack_kwargs:
+    :param unpack:
+    :param key:
     :param decorator_kwargs: 
     
     :return:
@@ -35,10 +37,11 @@ def before(func, unpack_kwargs=True, **decorator_kwargs):
         @wraps(decorated)
         def wrapper(*args, **kwargs):
             """The function called in place of the wrapped function"""
-            if unpack_kwargs:
+            if unpack:
                 ret = func(args, kwargs, **decorator_kwargs)
             else:
-                ret = func(args, kwargs, decorator_kwargs=decorator_kwargs)
+                to_unpack = {key: decorator_kwargs}
+                ret = func(args, kwargs, **to_unpack)
 
             return ret
 

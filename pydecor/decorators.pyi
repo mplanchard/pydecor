@@ -12,5 +12,6 @@ BeforeFuncReturn = Optional[Tuple[Tuple, Dict]]
 
 def before(
         func: Callable[..., BeforeFuncReturn],
-        unpack_kwargs: bool,
+        unpack: bool = True,
+        key: str = 'decorator_kwargs',
         **decorator_kwargs) -> DecoratorType: ...

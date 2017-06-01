@@ -12,14 +12,10 @@ AUTHOR = 'Matthew Planchard'
 EMAIL = 'msplanchard@gmail.com'
 
 SHORT_DESC = 'Easy peasy Python decorators'
-LONG_DESC = (
-    'Decorators are a super-useful feature of the Python language, but '
-    'they are complicated to write (especially with arguments), with '
-    'lots of boilerplate. This package aims to provide a suite of '
-    'easy-to-use decorators that enable developers to forget about the '
-    'details and complexity of decoration and get down to decorating '
-    'functions.'
-)
+
+with open('README.rst') as readmefile:
+    LONG_DESC = readmefile.read()
+
 KEYWORDS = [
     'decorators',
     'python2',
