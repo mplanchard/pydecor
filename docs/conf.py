@@ -14,7 +14,7 @@ from os.path import abspath, dirname, join, realpath
 from subprocess import PIPE, Popen
 
 cwd = dirname(realpath(__file__))
-root = abspath(join(cwd, '../..'))
+root = abspath(join(cwd, '..'))
 
 
 def get_setup_value(arg):
