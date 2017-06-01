@@ -6,21 +6,27 @@ from os.path import dirname, join, realpath
 from setuptools import setup, find_packages
 
 
+fdir = dirname(realpath(__file__))
+
+
 NAME = 'pydecor'
 URL = 'https://github.com/mplanchard/pydecor'
 AUTHOR = 'Matthew Planchard'
 EMAIL = 'msplanchard@gmail.com'
 
+
 SHORT_DESC = 'Easy peasy Python decorators'
 
-with open('README.rst') as readmefile:
+with open(join(fdir, 'README.rst')) as readmefile:
     LONG_DESC = readmefile.read()
+
 
 KEYWORDS = [
     'decorators',
     'python2',
     'python3',
 ]
+
 
 PACKAGE_DEPENDENCIES = []
 SETUP_DEPENDENCIES = []
@@ -29,7 +35,7 @@ EXTRAS_DEPENDENCIES = {}
 
 ENTRY_POINTS = {}
 
-with open('requirements.txt') as reqfile:
+with open(join(fdir, 'requirements.txt')) as reqfile:
     for ln in reqfile:
         if not ln.startswith('#'):
             PACKAGE_DEPENDENCIES.append(ln.strip())
@@ -65,9 +71,7 @@ CLASSIFIERS = [
 
 __version__ = '0.0.0'
 
-cwd = dirname(realpath(__file__))
-
-with open(join(cwd, '{0}/_version.py'.format(NAME))) as version_file:
+with open(join(fdir, '{0}/_version.py'.format(NAME))) as version_file:
     for line in version_file:
         # This will populate the __version__ and __version_info__ variables
         if line.startswith('__'):

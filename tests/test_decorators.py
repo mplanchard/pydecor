@@ -46,7 +46,7 @@ def packed_with_result(func_args, func_kwargs, result,
         func_args, func_kwargs, decorator_kwargs=decorator_kwargs)
 
 
-class TestCallbacks:
+class TestCallbacks(object):
     """Tests decorators that just make callbacks"""
 
     @pytest.mark.parametrize('decor, func, kwargs, raises', [
@@ -128,7 +128,7 @@ class TestCallbacks:
             assert some_func() == 'foo'
 
 
-class TestAlterations:
+class TestAlterations(object):
     """Test decorators that alter decorated params or results"""
 
     def test_arg_replacement(self):
