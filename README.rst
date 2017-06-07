@@ -45,3 +45,13 @@ similar arguments to ``decorate`` above, but will instead return a new
 decorator. Decorators created in this way will be callable at the function,
 method, or the class level, with or without parameters, and will be
 stackable.
+
+Credits and Links
+-----------------
+
+* This project was started using my semi-custom `project template`_
+* Tests are run with pytest_
+
+.. _`project template`: https://github.com/mplanchard/python_skeleton
+.. _pytest:
+.. _`py.test`: https://docs.pytest.org/en/latest/

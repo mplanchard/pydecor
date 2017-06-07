@@ -6,6 +6,7 @@ Submodules
 
 .. toctree::
 
+   pydecor._util
    pydecor._version
    pydecor.decorators
 

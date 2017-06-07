@@ -7,151 +7,309 @@ import pytest
 from pydecor.decorators import after, before
 
 
-def unpacked_callback(func_args, func_kwargs):
-    """Raise an assertion to ensure this is called"""
-    raise RuntimeError
+def generic_func(*args, **kwargs):
+    """Just return the call params"""
+    print('generic_func(*{}, **{})'.format(args, kwargs))
+    return args, kwargs
 
 
-def unpacked_with_kwarg(func_args, func_kwargs, foo=None):
-    """Raise an assertion if foo is not None"""
-    if foo is not None:
-        raise RuntimeError
+def null_return(*args, **kwargs):
+    """Return None"""
+    print('null_return(*{}, **{})'.format(args, kwargs))
+    return None
 
 
-def packed_callback(func_args, func_kwargs, decorator_kwargs=None):
-    """Raise an assertion if 'foo' in decorator_kwargs"""
-    if decorator_kwargs is None:
-        # This should always be populated with {} for packed calls
-        raise TypeError
-
-    if 'foo' in decorator_kwargs:
-        raise RuntimeError
-
-
-def unpacked_with_result(func_args, func_kwargs, result):
-    """Raise an assertion to ensure this is called"""
-    raise RuntimeError
-
-
-def unpacked_with_result_and_kwarg(func_args, func_kwargs, result,
-                                   foo=None):
-    """Raises an assertion if 'foo' provided"""
-    if foo is not None:
-        raise RuntimeError
-
-
-def packed_with_result(func_args, func_kwargs, result,
-                       decorator_kwargs=None):
-    return packed_callback(
-        func_args, func_kwargs, decorator_kwargs=decorator_kwargs)
-
-
-class TestCallbacks(object):
-    """Tests decorators that just make callbacks"""
-
-    @pytest.mark.parametrize('decor, func, kwargs, raises', [
-        (before, unpacked_callback, {}, RuntimeError),
-        (before, unpacked_callback, {'foo': 'bar'}, TypeError),
-        (before, unpacked_with_kwarg, {}, None),
-        (before, unpacked_with_kwarg, {'foo': 'bar'}, RuntimeError),
-        (before, unpacked_with_kwarg, {'foo': 'baz'}, RuntimeError),
-        (after, unpacked_with_result, {}, RuntimeError),
-        (after, unpacked_with_result, {'foo': 'bar'}, TypeError),
-        (after, unpacked_with_result_and_kwarg, {}, None),
-        (
-            after,
-            unpacked_with_result_and_kwarg,
+@pytest.mark.parametrize(
+    'wrapped, passed, dec_kwargs, func_args, func_kwargs, exp_ret', [
+        (   # All defaults, no params
+            generic_func,
+            null_return,
+            {},
+            (),
+            {},
+            ((), {})
+        ),
+        (   # General case, parameters not adjustment
+            generic_func,
+            null_return,
+            {},
+            ('a', 'b'),
             {'foo': 'bar'},
-            RuntimeError
+            (('a', 'b'), {'foo': 'bar'})
         ),
-        (
-            after,
-            unpacked_callback,
-            {'with_result': False},
-            RuntimeError
+        (   # General case, parameters not adjustment, extra kwargs
+            generic_func,
+            null_return,
+            {'extra': 'wow!'},
+            ('a', 'b'),
+            {'foo': 'bar'},
+            (('a', 'b'), {'foo': 'bar'})
         ),
-        (
-            after,
-            unpacked_callback,
-            {'foo': 'bar', 'with_result': False},
-            TypeError
+        (   # Case where parameters are replaced
+            generic_func,
+            generic_func,
+            {},
+            ('a', ),
+            {'foo': 'bar'},
+            ((('a', ), {'foo': 'bar'}), {})
         ),
-        (
-            after,
-            unpacked_with_kwarg,
-            {'with_result': False},
-            None
+        (   # Case where parameters are replaced, and a decorator
+            # kwarg is passed to the passed function
+            generic_func,
+            generic_func,
+            {'decorators': 'cool'},
+            ('a', ),
+            {'foo': 'bar'},
+            ((('a', ), {'foo': 'bar'}), {'decorators': 'cool'})
         ),
-        (
-            after,
-            unpacked_with_kwarg,
-            {'foo': 'bar', 'with_result': False},
-            RuntimeError
+        (   # Case where parameters are replaced, and a decorator
+            # kwarg is passed to the passed function, but the
+            # passed_kwargs are not unpacked
+            generic_func,
+            generic_func,
+            {'decorators': 'cool', 'unpack_passed': False},
+            ('a', ),
+            {'foo': 'bar'}, (
+                (('a', ), {'foo': 'bar'}),
+                {'passed': {'decorators': 'cool'}}
+            )
         ),
-        (
-            after,
-            unpacked_with_kwarg,
-            {'foo': 'baz', 'with_result': False},
-            RuntimeError
+        (   # Case where parameters are replaced, and a decorator
+            # kwarg is passed to the passed function, but the
+            # passed_kwargs are not unpacked, and a custom key
+            # is specified
+            generic_func,
+            generic_func, {
+                'decorators': 'cool',
+                'unpack_passed': False,
+                'passed_key': 'cool_kwargs'
+            },
+            ('a', ),
+            {'foo': 'bar'}, (
+                (('a', ), {'foo': 'bar'}),
+                {'cool_kwargs': {'decorators': 'cool'}}
+            )
         ),
-    ])
-    def test_unpacked(self, decor, func, kwargs, raises):
-        """Simple before test"""
+        (   # Case where parameters are replaced, but the passed
+            # function doesn't get any params.
+            generic_func,
+            generic_func,
+            {'with_params': False},
+            ('a', ),
+            {'foo': 'bar'},
+            ((), {}),
+        ),
+        (   # Case where parameters are replaced, the passed function
+            # gets no params, and an extra passed kwarg is specified
+            generic_func,
+            generic_func,
+            {'with_params': False, 'extra': 'woo'},
+            ('a', ),
+            {'foo': 'bar'},
+            ((), {'extra': 'woo'}),
+        ),
+        (   # Case where parameters are replaced, the passed
+            # function gets no params, and extra kwargs are not
+            # unpacked
+            generic_func,
+            generic_func, {
+                'with_params': False,
+                'extra': 'woo',
+                'unpack_passed': False
+            },
+            ('a', ),
+            {'foo': 'bar'},
+            ((), {'passed': {'extra': 'woo'}}),
+        ),
+        (   # Case where parameters are replaced, the passed
+            # function gets no params, and extra kwargs are not
+            # unpacked, and a custom key is specified
+            generic_func,
+            generic_func, {
+                'with_params': False,
+                'extra': 'woo',
+                'unpack_passed': False,
+                'passed_key': 'wow!'
+            },
+            ('a', ),
+            {'foo': 'bar'},
+            ((), {'wow!': {'extra': 'woo'}}),
+        ),
+    ]
+)
+def test_before_decorator(wrapped, passed, dec_kwargs, func_args,
+                          func_kwargs, exp_ret):
+    """Test decoration with the before decorator"""
+    func = before(passed, **dec_kwargs)(wrapped)
+    ret = func(*func_args, **func_kwargs)
+    assert ret == exp_ret
 
-        @decor(func, **kwargs)
-        def some_func():
-            return 'foo'
 
-        if raises is not None:
-            with pytest.raises(raises):
-                some_func()
-        else:
-            assert some_func() == 'foo'
+@pytest.mark.parametrize(
+    'wrapped, passed, dec_kwargs, func_args, func_kwargs, exp_ret', [
+        (   # Generic case, all defaults, no params
+            generic_func,
+            null_return,
+            {},
+            (),
+            {},
+            ((), {})
+        ),
+        (   # Generic case, all defaults, func params
+            generic_func,
+            null_return,
+            {},
+            ('a', ),
+            {'oh': 'my'},
+            (('a', ), {'oh': 'my'})
+        ),
+        (   # Generic case, all defaults, func params, extra kwargs
+            generic_func,
+            null_return,
+            {'new': 'hotness'},
+            ('a', ),
+            {'oh': 'my'},
+            (('a', ), {'oh': 'my'})
+        ),
+        (   # Null return wrapped, passed also returns null
+            null_return,
+            null_return,
+            {},
+            ('a', ),
+            {'oh': 'my'},
+            None,
+        ),
+        (   # Null return wrapped, replaced with passed return
+            null_return,
+            generic_func,
+            {},
+            ('a', ),
+            {'oh': 'my'},
+            ((None, ), {}),
+        ),
+        (   # Null return wrapped, replaced with passed return, extra
+            # kwargs
+            null_return,
+            generic_func,
+            {'passed': 'yeah!'},
+            ('a', ),
+            {'oh': 'my'},
+            ((None, ), {'passed': 'yeah!'}),
+        ),
+        (   # Null return wrapped, replaced with passed return, extra
+            # kwargs, kwargs not unpacked
+            null_return,
+            generic_func,
+            {'passed': 'yeah!', 'unpack_passed': False},
+            ('a', ),
+            {'oh': 'my'},
+            ((None, ), {'passed': {'passed': 'yeah!'}}),
+        ),
+        (   # Null return wrapped, replaced with passed return, extra
+            # kwargs, kwargs not unpacked, custom key
+            null_return,
+            generic_func,
+            {'passed': 'yeah!', 'unpack_passed': False, 'passed_key': 'a'},
+            ('a', ),
+            {'oh': 'my'},
+            ((None, ), {'a': {'passed': 'yeah!'}}),
+        ),
+        (   # Null return wrapped, replaced with passed return,
+            # params included with ret
+            null_return,
+            generic_func,
+            {'with_params': True},
+            ('a', ),
+            {'oh': 'my'},
+            ((None, ('a', ), {'oh': 'my'}), {}),
+        ),
+        (   # Null return wrapped, replaced with passed return,
+            # params included with ret, extra kwarg
+            null_return,
+            generic_func,
+            {'with_params': True, 'neato': 'torpedo'},
+            ('a', ),
+            {'oh': 'my'},
+            ((None, ('a', ), {'oh': 'my'}), {'neato': 'torpedo'}),
+        ),
+        (   # Null return wrapped, replaced with passed return,
+            # params included, result not included
+            null_return,
+            generic_func,
+            {'with_params': True, 'with_result': False},
+            ('a', ),
+            {'oh': 'my'},
+            ((('a', ), {'oh': 'my'}), {}),
+        ),
+    ]
+)
+def test_after_decorator(wrapped, passed, dec_kwargs, func_args,
+                         func_kwargs, exp_ret):
+    """Test decoration with the after decorator"""
+    func = after(passed, **dec_kwargs)(wrapped)
+    ret = func(*func_args, **func_kwargs)
+    assert ret == exp_ret
 
-    @pytest.mark.parametrize('decor, func, kwargs, raises', [
-        (before, packed_callback, {}, None),
-        (before, packed_callback, {'foo': 'bar'}, RuntimeError),
-        (after, packed_with_result, {}, None),
-        (after, packed_with_result, {'foo': 'bar'}, RuntimeError),
-    ])
-    def test_packed(self, decor, func, kwargs, raises):
-        """Simple before test"""
 
-        @decor(func, unpack=False, **kwargs)
-        def some_func():
-            return 'foo'
+@pytest.mark.parametrize(
+    'passed, dec_kwargs, func_args, func_kwargs, exp_ret', [
+        (   # Before returns nothing, called params returned
+            null_return,
+            {},
+            ('a', ),
+            {'foo': 'bar'},
+            (('a', ), {'foo': 'bar'})
+        ),
+        (   # Before return something, params passed, params to passed
+            # func returned as packed tuple/dict
+            generic_func,
+            {},
+            ('a', ),
+            {'foo': 'bar'},
+            ((('a', ), {'foo': 'bar'}), {})
+        ),
+        (   # Before return something, params passed, params to passed
+            # func returned as packed tuple/dict, extra kwargs passed
+            # to the passed function & returned as its kwargs
+            generic_func,
+            {'extra': 'amazing!'},
+            ('a', ),
+            {'foo': 'bar'},
+            ((('a', ), {'foo': 'bar'}), {'extra': 'amazing!'})
+        ),
+        (   # Before returns something, params NOT passed to it,
+            # so original params are replaced with empty tuple/dict
+            generic_func,
+            {'with_params': False},
+            ('a', ),
+            {'foo': 'bar'},
+            ((), {})
+        ),
+    ]
+)
+def test_before_class(passed, dec_kwargs, func_args, func_kwargs,
+                      exp_ret):
+    """Test that classes are successfully decorated by @before"""
 
-        if raises is not None:
-            with pytest.raises(raises):
-                some_func()
-        else:
-            assert some_func() == 'foo'
+    @before(passed, **dec_kwargs)
+    class GreatClass(object):
 
+        def __init__(self):
+            pass
 
-class TestAlterations(object):
-    """Test decorators that alter decorated params or results"""
-
-    def test_arg_replacement(self):
-        """Test replacing the decorated function args & kwargs"""
-
-        def replacer(func_args, func_kwargs):
-            return ('pining', ), {'for': 'fjords'}
-
-        @before(replacer)
-        def returner(*args, **kwargs):
+        def regular_method(self, *args, **kwargs):
             return args, kwargs
 
-        assert returner(1, foo='bar') == (('pining', ), {'for': 'fjords'})
+        @classmethod
+        def class_method(cls, *args, **kwargs):
+            return args, kwargs
 
-    def test_res_replacement(self):
-        """Test replacing the return"""
+        @staticmethod
+        def static_method(*args, **kwargs):
+            return args, kwargs
 
-        def replacer(func_args, func_kwargs, res):
-            """Replace res with something else"""
-            return 'belly'
+    great_class = GreatClass()
 
-        @after(replacer)
-        def usurped():
-            return 'flop'
-
-        assert usurped() == 'belly'
+    for name in ('regular_method', 'class_method', 'static_method'):
+        meth = getattr(great_class, name)
+        assert meth(*func_args, **func_kwargs) == exp_ret
