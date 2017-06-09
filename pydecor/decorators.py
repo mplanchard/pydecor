@@ -24,8 +24,9 @@ log = getLogger(__name__)
 DecoratorType = Union[FunctionType, MethodType, type]
 
 
-def before(func, with_params=True, unpack_passed=True,
-           passed_key='passed', **passed):
+def before(func, pass_params=True, pass_decorated=False,
+           implicit_method_decoration=True, unpack_extras=True,
+           extras_key='extras', **extras):
     """Specify a callable to be run before the decorated resource
 
     :param Callable func: a function to be called with the decorated
@@ -34,33 +35,46 @@ def before(func, with_params=True, unpack_passed=True,
         ``None``, or it should return a tuple of the form (args,
         kwargs), which will replace the args and kwargs with which the
         decorated function was called.
-    :param bool with_params: if True (the default), the arguments to the
+    :param bool pass_params: if True (the default), the arguments to the
         decorated function will be passed to the provided ``func``.
-    :param bool unpack_passed: if ``True`` (the default), any
+    :param bool pass_decorated: if True, a reference to the decorated
+        function will be passed to the provided ``func``
+    :param bool implicit_method_decoration:
+    :param bool unpack_extras: if ``True`` (the default), any
         extra keyword arguments included in the decorator call will be
         passed as keyword arguments to ``func``. If ``False``, extra
         keyword arguments will be passed to func as a dict assigned to
         the keyword argument corresponding to ``key`` (default
         ``'passed_kwargs'``
-    :param str passed_key: the key to which to assign extra decorator keyword
+    :param str extras_key: the key to which to assign extra decorator keyword
         arguments when ``unpack`` is ``False`` (default
         ``'passed_kwargs'``
-    :param dict passed: any extra keyword arguments supplied
+    :param dict extras: any extra keyword arguments supplied
         to the decoration
     
     :return: the decorated function/method
     :rtype: Union[FunctionType,MethodType,type]
     """
 
-    def decorator(decorated):
-        """The function returned in place of the decorated function"""
+    def decorator(decorated, **cls_kwargs):
+        """The function that returns a replacement for the original"""
 
         def wrapper(*args, **kwargs):
-            """The function called in place of the wrapped function"""
-            fargs = (args, kwargs) if with_params else ()
-            fkwargs = passed if unpack_passed else {passed_key: passed}
+            """The function that replaces the decorated one"""
 
-            fret = func(*fargs, **fkwargs)
+            # import ipdb; ipdb.set_trace()
+
+            fkwargs = extras if unpack_extras else {extras_key: extras}
+
+            fn = func
+
+            if pass_params:
+                fn = partial(fn, args, kwargs)
+
+            if pass_decorated:
+                fn = partial(fn, decorated)
+
+            fret = fn(**fkwargs)
 
             if fret is not None:
                 args, kwargs = fret
@@ -68,8 +82,14 @@ def before(func, with_params=True, unpack_passed=True,
             ret = decorated(*args, **kwargs)
             return ret
 
-        if isclass(decorated):
-            return ClassWrapper.wrap(decorated, decorator)
+        # import ipdb; ipdb.set_trace()
+
+        if implicit_method_decoration and isclass(decorated):
+            return ClassWrapper.wrap(
+                decorated,
+                decorator,
+                decorator_kwargs={}
+            )
 
         # Equivalent to @wraps(decorated) on `wrapper`
         return wraps(decorated)(wrapper)
@@ -77,39 +97,44 @@ def before(func, with_params=True, unpack_passed=True,
     return decorator
 
 
-def after(func, with_params=False, with_result=True, unpack_passed=True,
-          passed_key='passed', **passed):
+def after(func, pass_params=False, pass_result=True, pass_decorated=False,
+          implicit_method_decoration=True, unpack_extras=True,
+          extras_key='extras', **extras):
     """Specify a callable to be run after the decorated resource
 
     :param Callable func:
-    :param bool with_params:
-    :param bool with_result:
-    :param bool unpack_passed:
-    :param str passed_key:
-    :param dict passed:
+    :param bool pass_params:
+    :param bool pass_result:
+    :param bool pass_decorated:
+    :param bool implicit_method_decoration:
+    :param bool unpack_extras:
+    :param str extras_key:
+    :param dict extras:
 
     :return:
     :rtype: Union[FunctionType,MethodType,type]
     """
 
     def decorator(decorated):
-        """The function returned in place of the original function"""
+        """The function that returns a replacement for the original"""
 
-        @wraps(decorated)
         def wrapper(*args, **kwargs):
-            """The function called in place of the wrapped function"""
+            """The function that replaces the decorated one"""
 
             ret = decorated(*args, **kwargs)
 
             fn = func
 
-            if with_result:
+            if pass_result:
                 fn = partial(fn, ret)
 
-            if with_params:
+            if pass_params:
                 fn = partial(fn, args, kwargs)
 
-            fkwargs = passed if unpack_passed else {passed_key: passed}
+            if pass_decorated:
+                fn = partial(fn, decorated)
+
+            fkwargs = extras if unpack_extras else {extras_key: extras}
 
             fret = fn(**fkwargs)
 
@@ -118,10 +143,137 @@ def after(func, with_params=False, with_result=True, unpack_passed=True,
 
             return ret
 
-        if isclass(decorated):
+        if implicit_method_decoration and isclass(decorated):
             return ClassWrapper.wrap(decorated, decorator)
 
         # Equivalent to @wraps(decorated) on `wrapper`
         return wraps(decorated)(wrapper)
 
     return decorator
+
+
+def instead(func, pass_params=True, pass_decorated=True,
+            implicit_method_decoration=True, unpack_extras=True,
+            extras_key='extras', **extras):
+    """Specify a callable to be run in hte place of the decorated resource
+
+    :param Callable func:
+    :param bool pass_params:
+    :param bool pass_decorated:
+    :param bool implicit_method_decoration:
+    :param bool unpack_extras:
+    :param str extras_key:
+    :param dict extras:
+    """
+
+    def decorator(decorated):
+        """The function that returns a replacement for the original"""
+
+        def wrapper(*args, **kwargs):
+            """The function that replaces the decorated one"""
+
+            fn = func
+
+            if pass_params:
+                fn = partial(fn, args, kwargs)
+
+            if pass_decorated:
+                fn = partial(fn, decorated)
+
+            fkwargs = extras if unpack_extras else {extras_key: extras}
+
+            return fn(**fkwargs)
+
+        if implicit_method_decoration and isclass(decorated):
+            return ClassWrapper.wrap(decorated, decorator)
+
+        # Equivalent to @wraps(decorated) on `wrapper`
+        return wraps(decorated)(wrapper)
+
+    return decorator
+
+
+def decorate(before=None, after=None, instead=None, before_opts=None,
+             after_opts=None, instead_opts=None,
+             implicit_method_decoration=True, unpack_extras=True,
+             extras_key='extras', **extras):
+    """
+
+    :param Callable before:
+    :param Callable after:
+    :param Callable instead:
+    :param dict before_opts:
+    :param dict after_opts:
+    :param dict instead_opts:
+    :param implicit_method_decoration:
+    :param unpack_extras:
+    :param extras_key:
+    :param extras:
+    """
+
+    if all(arg is None for arg in (before, after, instead)):
+        raise ValueError(
+            'At least one of "before," "after," or "instead" must be provided'
+        )
+
+    my_before = before
+    my_after = after
+    my_instead = instead
+
+    before_opts = before_opts or {}
+    after_opts = after_opts or {}
+    instead_opts = instead_opts or {}
+
+    for opts in (before_opts, after_opts, instead_opts):
+        # Implicit method decoration cannot be mixed
+        opts['implicit_method_decoration'] = implicit_method_decoration
+
+    def decorator(decorated):
+
+        wrapped = decorated
+
+        if my_instead is not None:
+
+            global instead
+            dec_kwargs = _kwargs_from_opts(
+                instead_opts, unpack_extras, extras_key, extras
+            )
+            wrapped = instead(my_instead, **dec_kwargs)(wrapped)
+
+        if my_before is not None:
+
+            global before
+            dec_kwargs = _kwargs_from_opts(
+                before_opts, unpack_extras, extras_key, extras
+            )
+            wrapped = before(my_before, **dec_kwargs)(wrapped)
+
+        if my_after is not None:
+
+            global after
+
+            dec_kwargs = _kwargs_from_opts(
+                after_opts, unpack_extras, extras_key, extras
+            )
+            wrapped = after(my_after, **dec_kwargs)(wrapped)
+
+        def wrapper(*args, **kwargs):
+
+            return wrapped(*args, **kwargs)
+
+        if implicit_method_decoration and isclass(wrapped):
+            return ClassWrapper.wrap(decorated, decorator)
+
+        return wraps(decorated)(wrapper)
+
+    return decorator
+
+
+def _kwargs_from_opts(opts, unpack_extras, extras_key, extras):
+    kwargs = opts
+    if opts.get('unpack_extras', unpack_extras):
+        kwargs.update(extras)
+    else:
+        key = opts.get('extras_key', extras_key)
+        kwargs[key] = extras
+    return kwargs

@@ -72,10 +72,7 @@ class ClassWrapper(object):
         """
         attr = getattr(self.wrapped, item)
 
-        if self.__class__.decorator_kwargs is None:
-            kwargs = {}
-        else:
-            kwargs = self.__class__.decorator_kwargs
+        kwargs = self.__class__.decorator_kwargs or {}
 
         if ismethod(attr) or isfunction(attr):
             if PY2:
