@@ -2,7 +2,12 @@
 Private interface utilities for PyDecor
 """
 
-from functools import partial
+from __future__ import absolute_import, unicode_literals
+
+
+__all__ = ('ClassWrapper', )
+
+
 from logging import getLogger
 from sys import version_info
 
@@ -55,51 +60,86 @@ class ClassWrapper(object):
                 pass
 
     """
-    wrapped = None
-    decorator = None
-    decorator_kwargs = None
+    __wrapped__ = None
+    __decorator__ = None
+    __decoropts__ = None
 
     def __init__(self, *args, **kwargs):
-        self.wrapped = self.wrapped(*args, **kwargs)
+        self.__wrapped__ = self.__wrapped__(*args, **kwargs)
 
-    def __getattr__(self, item):
-        """Return a wrapped method/function or a raw attr
+    def __getattribute__(self, item):
 
-        If the requested attribute is a method or a function
-        (determined via ``inspect``), wrap it and return.
+        if item in ('__wrapped__', '__decorator__', '__decoropts__'):
+            return object.__getattribute__(self, item)
 
-        Otherwise, just return the attribute.
-        """
-        attr = getattr(self.wrapped, item)
+        wrapped = object.__getattribute__(self, '__wrapped__')
+        attr = getattr(wrapped, item)
 
-        kwargs = self.__class__.decorator_kwargs or {}
+        if attr is None:
+            raise AttributeError
 
         if ismethod(attr) or isfunction(attr):
+            cls = object.__getattribute__(self, '__class__')
+            decoropts = object.__getattribute__(cls, '__decoropts__')
+            decor = object.__getattribute__(cls, '__decorator__')
+
+            if decoropts['instance_methods_only']:
+                cls_attr = object.__getattribute__(cls, item)
+                if type(cls_attr) is classmethod:
+                    return attr
+                if type(cls_attr) is staticmethod:
+                    return attr
+
             if PY2:
-                return self.__class__.decorator.__func__(attr, **kwargs)
+                return decor(attr)
             else:
-                return self.__class__.decorator(attr, **kwargs)
-        else:
-            return attr
+                return decor(attr)
+
+        return attr
 
     @classmethod
-    def wrap(cls, wrapped, decorator, decorator_kwargs=None):
+    def _get_class_attrs(cls, wrapped, decorator, instance_methods_only):
+        """Get the attrs for a new class instance
+
+        :param type wrapped: a reference to the class to be wrapped
+        :param Union[FunctionType,MethodType,type] decorator:
+            the decorator to apply to the
+            functions and methods of the wrapped class
+        """
+        attrs = {}
+
+        for k, v in wrapped.__dict__.items():
+            if not k.startswith('__'):
+                attrs[k] = v
+
+        attrs.update(
+            {
+                '__wrapped__': wrapped,
+                '__decorator__': decorator,
+                '__decoropts__': {
+                    'instance_methods_only': instance_methods_only
+                }
+            }
+        )
+
+        return attrs
+
+    @classmethod
+    def wrap(cls, wrapped, decorator, instance_methods_only=False):
         """Return a new class wrapping the passed class
 
         :param type wrapped: a reference to the class to be wrapped
         :param Union[FunctionType,MethodType,type] decorator:
             the decorator to apply to the
             functions and methods of the wrapped class
-        :param dict decorator_kwargs: keyword arguments that should
-            be passed to the inner decorator whenever it is
-            used to decorate a method
         """
+        name = 'Wrapped{}'.format(wrapped.__name__)
+        if PY2:
+            name = str(name)
+
         return type(
-            'Wrapped{}'.format(wrapped.__name__),
-            (cls,),
-            {
-                'wrapped': wrapped,
-                'decorator': decorator,
-                'decorator_kwargs': decorator_kwargs,
-            }
+            name,
+            (cls, ),
+            # {'__decorator__': decorator}
+            cls._get_class_attrs(wrapped, decorator, instance_methods_only)
         )

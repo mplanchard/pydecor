@@ -2,6 +2,8 @@
 A module housing the decorators provided in the public API of PyDecor
 """
 
+from __future__ import absolute_import, unicode_literals
+
 from inspect import isclass
 from logging import getLogger
 from functools import partial, wraps
@@ -25,8 +27,8 @@ DecoratorType = Union[FunctionType, MethodType, type]
 
 
 def before(func, pass_params=True, pass_decorated=False,
-           implicit_method_decoration=True, unpack_extras=True,
-           extras_key='extras', **extras):
+           implicit_method_decoration=True, instance_methods_only=False,
+           unpack_extras=True, extras_key='extras', **extras):
     """Specify a callable to be run before the decorated resource
 
     :param Callable func: a function to be called with the decorated
@@ -56,7 +58,7 @@ def before(func, pass_params=True, pass_decorated=False,
     :rtype: Union[FunctionType,MethodType,type]
     """
 
-    def decorator(decorated, **cls_kwargs):
+    def decorator(decorated):
         """The function that returns a replacement for the original"""
 
         def wrapper(*args, **kwargs):
@@ -82,13 +84,11 @@ def before(func, pass_params=True, pass_decorated=False,
             ret = decorated(*args, **kwargs)
             return ret
 
-        # import ipdb; ipdb.set_trace()
-
         if implicit_method_decoration and isclass(decorated):
             return ClassWrapper.wrap(
                 decorated,
                 decorator,
-                decorator_kwargs={}
+                instance_methods_only=instance_methods_only
             )
 
         # Equivalent to @wraps(decorated) on `wrapper`
@@ -98,8 +98,8 @@ def before(func, pass_params=True, pass_decorated=False,
 
 
 def after(func, pass_params=False, pass_result=True, pass_decorated=False,
-          implicit_method_decoration=True, unpack_extras=True,
-          extras_key='extras', **extras):
+          implicit_method_decoration=True, instance_methods_only=False,
+          unpack_extras=True, extras_key='extras', **extras):
     """Specify a callable to be run after the decorated resource
 
     :param Callable func:
@@ -144,7 +144,11 @@ def after(func, pass_params=False, pass_result=True, pass_decorated=False,
             return ret
 
         if implicit_method_decoration and isclass(decorated):
-            return ClassWrapper.wrap(decorated, decorator)
+            return ClassWrapper.wrap(
+                decorated,
+                decorator,
+                instance_methods_only=instance_methods_only
+            )
 
         # Equivalent to @wraps(decorated) on `wrapper`
         return wraps(decorated)(wrapper)
@@ -153,8 +157,8 @@ def after(func, pass_params=False, pass_result=True, pass_decorated=False,
 
 
 def instead(func, pass_params=True, pass_decorated=True,
-            implicit_method_decoration=True, unpack_extras=True,
-            extras_key='extras', **extras):
+            implicit_method_decoration=True, instance_methods_only=False,
+            unpack_extras=True, extras_key='extras', **extras):
     """Specify a callable to be run in hte place of the decorated resource
 
     :param Callable func:
@@ -185,7 +189,11 @@ def instead(func, pass_params=True, pass_decorated=True,
             return fn(**fkwargs)
 
         if implicit_method_decoration and isclass(decorated):
-            return ClassWrapper.wrap(decorated, decorator)
+            return ClassWrapper.wrap(
+                decorated,
+                decorator,
+                instance_methods_only=instance_methods_only
+            )
 
         # Equivalent to @wraps(decorated) on `wrapper`
         return wraps(decorated)(wrapper)
@@ -195,7 +203,8 @@ def instead(func, pass_params=True, pass_decorated=True,
 
 def decorate(before=None, after=None, instead=None, before_opts=None,
              after_opts=None, instead_opts=None,
-             implicit_method_decoration=True, unpack_extras=True,
+             implicit_method_decoration=True,
+             instance_methods_only=False, unpack_extras=True,
              extras_key='extras', **extras):
     """
 
@@ -262,7 +271,11 @@ def decorate(before=None, after=None, instead=None, before_opts=None,
             return wrapped(*args, **kwargs)
 
         if implicit_method_decoration and isclass(wrapped):
-            return ClassWrapper.wrap(decorated, decorator)
+            return ClassWrapper.wrap(
+                decorated,
+                decorator,
+                instance_methods_only=instance_methods_only
+            )
 
         return wraps(decorated)(wrapper)
 
