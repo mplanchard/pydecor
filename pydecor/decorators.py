@@ -4,6 +4,17 @@ A module housing the decorators provided in the public API of PyDecor
 
 from __future__ import absolute_import, unicode_literals
 
+
+__all__ = (
+    'after',
+    'before',
+    'decorate',
+    'instead',
+    'intercept',
+    'DecoratorType',
+)
+
+
 from inspect import isclass
 from logging import getLogger
 from functools import partial, wraps
@@ -11,14 +22,7 @@ from types import FunctionType, MethodType
 from typing import Union
 
 from ._util import ClassWrapper
-
-
-__all__ = (
-    'after',
-    'before',
-    'DecoratorType',
-)
-
+from .functions import interceptor
 
 log = getLogger(__name__)
 
@@ -304,7 +308,7 @@ def instead(func, pass_params=True, pass_decorated=True,
     and keyword arguments used to call the decorated function, as a
     tuple and a dict, respectively, and a reference to the decorated
     function. Any extra keyword arguments specified in the decoration
-    call are also passed to the callable.::
+    call are also passed to the callable::
 
         (decorated_args, decorated_kwargs, decorated, **extras)
 
@@ -451,15 +455,15 @@ def decorate(before=None, after=None, instead=None, before_opts=None,
 
     :param dict before_opts:
         a dictionary of keyword arguments to pass to the ``before``
-        decorator. See :ref:`before` for supported options.
+        decorator. See :any:`before` for supported options.
 
     :param dict after_opts:
         a dictionary of keyword arguments to pass to the ``after``
-        decorator. See :ref:`after` for supported options.
+        decorator. See :any:`after` for supported options.
 
     :param dict instead_opts:
         a dictionary of keyword arguments to pass to the ``instead``
-        decorator. See :ref:`instead` for supported options
+        decorator. See :any:`instead` for supported options
 
     :param bool implicit_method_decoration:
         (default True) if True, decorating a class implies decorating
@@ -554,6 +558,88 @@ def decorate(before=None, after=None, instead=None, before_opts=None,
         return wraps(decorated)(wrapper)
 
     return decorator
+
+
+def construct_decorator(before=None, after=None, instead=None,
+                        before_opts=None, after_opts=None, instead_opts=None,
+                        implicit_method_decoration=True,
+                        instance_methods_only=False, unpack_extras=True,
+                        extras_key='extras', **extras):
+    """Return a custom decorator
+
+    Options are all the same as for :any:`decorate` and are, in fact,
+    passed directly to it.
+
+    Once the decorator has been created, it can be used like any
+    other decorators in this module. Passing extra keyword arguments
+    during the decoration call will pass those extras to the
+    provided callables, even if some default extras were already set
+    when creating the decorator.
+
+    :return: a decorator that can be used to decorate functions,
+        classes, or methods
+    :rtype: FunctionType
+    """
+    return partial(
+        decorate, before=before, after=after, instead=instead,
+        before_opts=before_opts, after_opts=after_opts,
+        instead_opts=instead_opts,
+        implicit_method_decoration=implicit_method_decoration,
+        instance_methods_only=instance_methods_only,
+        unpack_extras=unpack_extras, extras_key=extras_key,
+        **extras
+    )
+
+
+def intercept(catch=Exception, reraise=None, handler=None):
+    """Intercept an exception and either re-raise, handle, or both
+
+    Example:
+
+    .. code:: python
+
+        from logging import getLogger
+        from pydecor import intercept
+
+        log = getLogger(__name__)
+
+        class MyLibraryError(Exception):
+            pass
+
+        def error_handler(exception):
+            log.exception(exception)
+
+        # Re-raise and handle
+        @intercept(catch=ValueError, reraise=MyLibraryError,
+                   handler=error_handler):
+        def some_error_prone_function():
+            return int('foo')
+
+        # Re-raise only
+        @intercept(catch=TypeError, reraise=MyLibraryError)
+        def another_error_prone_function(splittable_string):
+            return splittable_string.split('/', '.')
+
+        # Handle only
+        @intercept(catch=ValueError, handle=error_handler)
+        def ignorable_error(some_string):
+            # Just run the handler on error, rather than re-raising
+            log.info('This string is {}'.format(int(string)))
+
+
+    :param Type[Exception] catch: the exception to catch
+    :param Type[Exception] reraise: the exception to re-raise. If not
+        provided, the exception will not be re-raised.
+    :param Callable[[Type[Exception]],Any] handler: a function to call
+        with the caught exception as its only argument. If not provided,
+        nothing will be done with the caught exception
+    """
+    return instead(
+        interceptor,
+        catch=catch,
+        reraise=reraise,
+        handler=handler,
+    )
 
 
 def _kwargs_from_opts(opts, unpack_extras, extras_key, extras):

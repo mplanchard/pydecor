@@ -9,12 +9,12 @@ Submodules
    pydecor._util
    pydecor._version
    pydecor.decorators
+   pydecor.functions
 
 Module contents
 ---------------
 
 .. automodule:: pydecor
-    :members:
     :members:
     :private-members:
     :undoc-members:

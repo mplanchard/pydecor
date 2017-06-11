@@ -1,7 +1,7 @@
-pydecor\.\_version module
+pydecor\.functions module
 =========================
 
-.. automodule:: pydecor._version
+.. automodule:: pydecor.functions
     :members:
     :private-members:
     :undoc-members:

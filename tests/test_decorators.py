@@ -5,15 +5,23 @@ Tests for the decorators module
 from __future__ import absolute_import, unicode_literals
 
 try:
-    from unittest.mock import Mock
+    from unittest.mock import Mock, call
 except ImportError:
-    from mock import MagicMock, Mock
+    from mock import Mock, call
 
+from inspect import isfunction
 from sys import version_info
 
 import pytest
 
-from pydecor.decorators import after, before, decorate, instead
+from pydecor.decorators import (
+    after,
+    before,
+    construct_decorator,
+    decorate,
+    instead,
+    intercept,
+)
 
 
 PY2 = version_info < (3, 0)
@@ -188,8 +196,11 @@ def func_sig_instead(kwargs, fn_args, fn_kwargs, decorated):
 
 func_sig_map = {
     before: func_sig_before,
+    'before': func_sig_before,
     after: func_sig_after,
+    'after': func_sig_after,
     instead: func_sig_instead,
+    'instead': func_sig_instead,
 }
 
 
@@ -343,39 +354,43 @@ def test_class_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
 
 
 @pytest.mark.parametrize('decor, ret, kwargs, fn_args, fn_kwargs', base_params)
-def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs):
+def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs,
+                            pass_mock=None, decor_name=None):
     """Test the ``decorate`` decorator, one type at a time"""
 
     decorated_mock_return = 'Elementary'
 
-    pass_mock = Mock(return_value=ret)
+    decor_name = decor_name or decor.__name__
+
+    pass_mock = pass_mock or Mock(return_value=ret)
+
     decorated_mock = Mock(return_value=decorated_mock_return)
 
     if PY2:
         pass_mock.__name__ = str('before_mock')
         decorated_mock.__name__ = str('decorated_mock')
 
-    kwargs[decor.__name__] = pass_mock
+    kwargs[decor_name] = pass_mock
 
     fn = decorate(**kwargs)(decorated_mock)
 
     fn_ret = fn(*fn_args, **fn_kwargs)
 
-    fn_sig_func = func_sig_map[decor]
+    fn_sig_func = func_sig_map[decor_name]
     fn_sig_args = [kwargs, fn_args, fn_kwargs, decorated_mock]
-    if decor is after:
+    if decor_name == 'after':
         fn_sig_args.append(decorated_mock_return)
 
     # Remove the before/after/instead key from the kwargs dict, since
     # it does not get passed from the decorator call down to the
     # before/after/instead call
-    del kwargs[decor.__name__]
+    del kwargs[decor_name]
 
     exp_args, exp_kwargs = fn_sig_func(*fn_sig_args)
 
     pass_mock.assert_called_once_with(*exp_args, **exp_kwargs)
 
-    if decor is before:
+    if decor_name == 'before':
         if ret is not None:
             assert len(ret) == 2
             args, kwargs = ret
@@ -385,7 +400,7 @@ def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs):
 
         assert fn_ret == decorated_mock_return
 
-    elif decor is after:
+    elif decor_name == 'after':
         decorated_mock.assert_called_once_with(*fn_args, **fn_kwargs)
 
         if ret is not None:
@@ -393,12 +408,38 @@ def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs):
         else:
             assert fn_ret == decorated_mock_return
 
-    elif decor is instead:
+    elif decor_name == 'instead':
         decorated_mock.assert_not_called()
         assert ret == fn_ret
 
     else:
         assert False, 'Unexpected decorator???'
+
+
+@pytest.mark.parametrize('decor, ret, kwargs, fn_args, fn_kwargs', base_params)
+def test_decorator_constructor_no_mixing(decor, ret, kwargs, fn_args,
+                                         fn_kwargs):
+    """Test that decorator-generated decorators behave as expected"""
+
+    pass_mock = Mock(return_value=ret)
+
+    if PY2:
+        pass_mock.__name__ = str('before_mock')
+
+    kwargs[decor.__name__] = pass_mock
+
+    # Make a custom generated decorator
+    gen_decorator = construct_decorator(**kwargs)
+
+    test_decorate_no_mixing(
+        gen_decorator,
+        ret,
+        kwargs,
+        fn_args,
+        fn_kwargs,
+        pass_mock=pass_mock,
+        decor_name=decor.__name__,
+    )
 
 
 @pytest.mark.parametrize('decorator', [before, after, instead])
@@ -541,3 +582,270 @@ def test_extras_persistence_class_inst_only(decorator):
         gc.stately_method()
 
     assert len(memo) == 2
+
+
+@pytest.mark.parametrize('raises, catch, reraise, include_handler', [
+    (Exception, Exception, ValueError, False),
+    (Exception, Exception, ValueError, True),
+    (None, Exception, ValueError, False),
+    (None, Exception, ValueError, True),
+    (Exception, Exception, None, False),
+    (Exception, Exception, None, True),
+    (Exception, RuntimeError, ValueError, False),  # won't catch
+    (Exception, RuntimeError, ValueError, True),  # won't catch
+])
+def test_intercept(raises, catch, reraise, include_handler):
+    """Test the intercept decorator"""
+    wrapped = Mock()
+
+    if PY2:
+        wrapped.__name__ = 'wrapped'
+
+    if raises is not None:
+        wrapped.side_effect = raises
+
+    handler = Mock() if include_handler else None
+
+    fn = intercept(catch=catch, reraise=reraise, handler=handler)(wrapped)
+
+    will_catch = raises and issubclass(raises, catch)
+
+    if reraise and will_catch:
+        with pytest.raises(reraise):
+            fn()
+    elif raises and not will_catch:
+        with pytest.raises(raises):
+            fn()
+    else:
+        fn()
+
+    if handler is not None and will_catch:
+        called_with = handler.call_args[0][0]
+        assert isinstance(called_with, raises)
+
+    if handler is not None and not will_catch:
+        handler.assert_not_called()
+
+    wrapped.assert_called_once_with(*(), **{})
+
+
+def test_stacking_before_after():
+    """Test the stacking of before followed by after"""
+    tracker = Mock(name='tracker', return_value=None)
+
+    decorated = Mock(name='decorated', return_value='decorated')
+
+    if PY2:
+        for mock in tracker, decorated:
+            setattr(mock, '__name__', mock.name)
+
+    fn = before(tracker)(decorated)
+    fn = after(tracker)(fn)
+
+    fn()
+
+    decorated.assert_called_once_with()
+
+    assert tracker.call_count == 2
+    before_call_args, before_call_kwargs = tracker.call_args_list[0]
+    after_call_args, after_call_kwargs = tracker.call_args_list[1]
+
+    assert before_call_args == ()
+    assert before_call_kwargs == {}
+
+    assert after_call_args == ('decorated', )
+    assert after_call_kwargs == {}
+
+
+def test_stacking_after_before():
+    """Test stacking of after prior to before"""
+    tracker = Mock(name='tracker', return_value=None)
+
+    decorated = Mock(name='decorated', return_value='decorated')
+
+    if PY2:
+        for mock in tracker, decorated:
+            setattr(mock, '__name__', mock.name)
+
+    fn = after(tracker)(decorated)
+    fn = before(tracker)(fn)
+
+    fn()
+
+    decorated.assert_called_once_with()
+
+    assert tracker.call_count == 2
+
+    # The order in which before/after are specified shouldn't matter
+    before_call_args, before_call_kwargs = tracker.call_args_list[0]
+    after_call_args, after_call_kwargs = tracker.call_args_list[1]
+
+    assert before_call_args == ()
+    assert before_call_kwargs == {}
+
+    assert after_call_args == ('decorated', )
+    assert after_call_kwargs == {}
+
+
+@pytest.mark.parametrize('decor', [before, after])
+def test_stacking_instead(decor):
+    """Test stacking when instead is specified last (which is WRONG)
+
+    Note that putting instead late in the stack WILL override
+    any previous decorators!
+    """
+    tracker = Mock(name='tracker', return_value=None)
+
+    decorated = Mock(name='decorated', return_value='decorated')
+
+    if PY2:
+        for mock in tracker, decorated:
+            setattr(mock, '__name__', mock.name)
+
+    fn = decor(tracker)(decorated)
+    fn = instead(tracker)(fn)
+
+    fn()
+
+    decorated.assert_not_called()
+    assert tracker.call_count == 1
+    assert tracker.call_args[0][:2] == ((), {})
+    assert isfunction(tracker.call_args[0][2])
+
+
+def test_stacking_instead_before():
+    """Test stacking instead prior to before
+
+    In this case, before should run properly.
+    """
+    tracker = Mock(name='tracker', return_value=None)
+
+    decorated = Mock(name='decorated', return_value='decorated')
+
+    if PY2:
+        for mock in tracker, decorated:
+            setattr(mock, '__name__', mock.name)
+
+    fn = instead(tracker)(decorated)
+    fn = before(tracker)(fn)
+
+    fn()
+
+    decorated.assert_not_called()
+
+    assert tracker.call_count == 2
+
+    before_call_args, before_call_kwargs = tracker.call_args_list[0]
+    instead_call_args, instead_call_kwargs = tracker.call_args_list[1]
+
+    assert before_call_args == ()
+    assert before_call_kwargs == {}
+
+    assert instead_call_args == ((), {}, decorated)
+    assert instead_call_kwargs == {}
+
+
+def test_stacking_instead_after():
+    """Test stacking instead prior to after
+
+    In this case, after should behave properly
+    """
+    tracker = Mock(name='tracker', return_value=None)
+
+    decorated = Mock(name='decorated', return_value='decorated')
+
+    if PY2:
+        for mock in tracker, decorated:
+            setattr(mock, '__name__', mock.name)
+
+    fn = instead(tracker)(decorated)
+    fn = after(tracker)(fn)
+
+    fn()
+
+    decorated.assert_not_called()
+
+    assert tracker.call_count == 2
+
+    instead_call_args, instead_call_kwargs = tracker.call_args_list[0]
+    after_call_args, after_call_kwargs = tracker.call_args_list[1]
+
+    assert instead_call_args == ((), {}, decorated)
+    assert instead_call_kwargs == {}
+
+    assert after_call_args == (None, )
+    assert after_call_kwargs == {}
+
+
+def test_stacking_instead_before_after():
+    """Test stacking all three decorators, instead-before-after
+
+    As long as instead is specified first, this should work fine
+    """
+    tracker = Mock(name='tracker', return_value=None)
+
+    decorated = Mock(name='decorated', return_value='decorated')
+
+    if PY2:
+        for mock in tracker, decorated:
+            setattr(mock, '__name__', mock.name)
+
+    fn = instead(tracker)(decorated)
+    fn = before(tracker)(fn)
+    fn = after(tracker)(fn)
+
+    fn()
+
+    decorated.assert_not_called()  # because instead() doesn't call it
+
+    assert tracker.call_count == 3
+
+    before_call_args, before_call_kwargs = tracker.call_args_list[0]
+    instead_call_args, instead_call_kwargs = tracker.call_args_list[1]
+    after_call_args, after_call_kwargs = tracker.call_args_list[2]
+
+    assert before_call_args == ()
+    assert before_call_kwargs == {}
+
+    assert instead_call_args == ((), {}, decorated)
+    assert instead_call_kwargs == {}
+
+    assert after_call_args == (None, )
+    assert after_call_kwargs == {}
+
+
+def test_stacking_instead_after_before():
+    """Test stacking all three decorators, instead-after-before
+
+    This should work exactly the same as instead-before-after
+    """
+    tracker = Mock(name='tracker', return_value=None)
+
+    decorated = Mock(name='decorated', return_value='decorated')
+
+    if PY2:
+        for mock in tracker, decorated:
+            setattr(mock, '__name__', mock.name)
+
+    fn = instead(tracker)(decorated)
+    fn = after(tracker)(fn)
+    fn = before(tracker)(fn)
+
+    fn()
+
+    decorated.assert_not_called()  # because instead() doesn't call it
+
+    assert tracker.call_count == 3
+
+    before_call_args, before_call_kwargs = tracker.call_args_list[0]
+    instead_call_args, instead_call_kwargs = tracker.call_args_list[1]
+    after_call_args, after_call_kwargs = tracker.call_args_list[2]
+
+    assert before_call_args == ()
+    assert before_call_kwargs == {}
+
+    assert instead_call_args == ((), {}, decorated)
+    assert instead_call_kwargs == {}
+
+    assert after_call_args == (None, )
+    assert after_call_kwargs == {}
