@@ -108,7 +108,7 @@ def func_sig_before(kwargs, fn_args, fn_kwargs, decorated):
     """Return the expected signature for the decorator func"""
     exp_args = ()
 
-    if kwargs.get('pass_params', True):
+    if kwargs.get('pass_params', False):
         exp_args += (fn_args, fn_kwargs)
 
     if kwargs.get('pass_decorated', False):
@@ -256,7 +256,7 @@ def test_function_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
 @pytest.mark.parametrize(
     'decor, ret, kwargs, fn_args, fn_kwargs', class_params
 )
-def test_class_decor_before(decor, ret, kwargs, fn_args, fn_kwargs):
+def test_class_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
     """Test decorators when applied to a class"""
     func_mock = Mock(return_value=ret)
     decorated_return = 'wow, what a return'
@@ -342,20 +342,63 @@ def test_class_decor_before(decor, ret, kwargs, fn_args, fn_kwargs):
             assert False, 'Unexpected decorator???'
 
 
-def test_decorate():
+@pytest.mark.parametrize('decor, ret, kwargs, fn_args, fn_kwargs', base_params)
+def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs):
+    """Test the ``decorate`` decorator, one type at a time"""
 
-    before_mock = Mock(return_value=None)
-    decorated_mock = Mock(return_value=None)
+    decorated_mock_return = 'Elementary'
+
+    pass_mock = Mock(return_value=ret)
+    decorated_mock = Mock(return_value=decorated_mock_return)
 
     if PY2:
-        before_mock.__name__ = str('before_mock')
+        pass_mock.__name__ = str('before_mock')
         decorated_mock.__name__ = str('decorated_mock')
 
-    fn = decorate(before=before_mock)(decorated_mock)
-    ret = fn('a')
+    kwargs[decor.__name__] = pass_mock
 
-    before_mock.assert_called_once_with(('a', ), {})
-    assert ret is None
+    fn = decorate(**kwargs)(decorated_mock)
+
+    fn_ret = fn(*fn_args, **fn_kwargs)
+
+    fn_sig_func = func_sig_map[decor]
+    fn_sig_args = [kwargs, fn_args, fn_kwargs, decorated_mock]
+    if decor is after:
+        fn_sig_args.append(decorated_mock_return)
+
+    # Remove the before/after/instead key from the kwargs dict, since
+    # it does not get passed from the decorator call down to the
+    # before/after/instead call
+    del kwargs[decor.__name__]
+
+    exp_args, exp_kwargs = fn_sig_func(*fn_sig_args)
+
+    pass_mock.assert_called_once_with(*exp_args, **exp_kwargs)
+
+    if decor is before:
+        if ret is not None:
+            assert len(ret) == 2
+            args, kwargs = ret
+            decorated_mock.assert_called_once_with(*args, **kwargs)
+        else:
+            decorated_mock.assert_called_once_with(*fn_args, **fn_kwargs)
+
+        assert fn_ret == decorated_mock_return
+
+    elif decor is after:
+        decorated_mock.assert_called_once_with(*fn_args, **fn_kwargs)
+
+        if ret is not None:
+            assert fn_ret == ret
+        else:
+            assert fn_ret == decorated_mock_return
+
+    elif decor is instead:
+        decorated_mock.assert_not_called()
+        assert ret == fn_ret
+
+    else:
+        assert False, 'Unexpected decorator???'
 
 
 @pytest.mark.parametrize('decorator', [before, after, instead])
