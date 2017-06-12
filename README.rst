@@ -3,6 +3,12 @@ PyDecor
 
 Easy-peasy Python decorators!
 
+GitHub: https://github.com/mplanchard/pydecor
+
+PyPI: https://pypi.python.org/pypi/pydecor
+
+Docs: https://pythonhosted.org/pydecor/
+
 
 Summary
 -------
@@ -410,6 +416,29 @@ don't *have* to receive anything. Maybe you want to skip a function when
 a certain condition is True, but you don't want to use ``pytest.skipif``,
 because ``pytest`` can't be a dependency of your production code for
 whatever reason.
+
+
+.. code:: python
+
+    from pydecor import instead
+
+    def skip(args, kwargs, decorated, when=False):
+        if when:
+            pass
+        else:
+            return decorated(*args, **kwargs)
+
+
+    @instead(skip, when=True)
+    def uncalled_function():
+        print("You won't see me (you won't see me)")
+
+
+    uncalled_function()
+
+The output?
+
+(There is no output, because the function was skipped)
 
 
 Roadmap
