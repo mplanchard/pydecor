@@ -3,11 +3,9 @@ PyDecor
 
 Easy-peasy Python decorators!
 
-GitHub: https://github.com/mplanchard/pydecor
-
-PyPI: https://pypi.python.org/pypi/pydecor
-
-Docs: https://pythonhosted.org/pydecor/
+* GitHub: https://github.com/mplanchard/pydecor
+* PyPI: https://pypi.python.org/pypi/pydecor
+* Docs: https://pythonhosted.org/pydecor/
 
 
 Summary
