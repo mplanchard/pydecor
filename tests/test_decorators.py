@@ -9,14 +9,17 @@ try:
 except ImportError:
     from mock import Mock, call
 
+from logging import getLogger
 from inspect import isfunction
 from sys import version_info
 
 import pytest
 
+from pydecor.constants import LOG_CALL_FMT_STR
 from pydecor.decorators import (
     after,
     before,
+    log_call,
     construct_decorator,
     decorate,
     instead,
@@ -222,9 +225,8 @@ def test_function_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
     func_mock = Mock(return_value=ret)
     decorated_mock = Mock(return_value=decorated_mock_return)
 
-    if PY2:
-        func_mock.__name__ = str('func_mock')
-        decorated_mock.__name__ = str('decorated_mock')
+    func_mock.__name__ = str('func_mock')
+    decorated_mock.__name__ = str('decorated_mock')
 
     fn = decor(func_mock, **kwargs)(decorated_mock)
     fn_ret = fn(*fn_args, **fn_kwargs)
@@ -276,7 +278,7 @@ def test_class_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
     static_mock = Mock(name='static_mock', return_value=decorated_return)
 
     @decor(func_mock, **kwargs)
-    class TheClass:
+    class TheClass(object):
 
         def method(self, *args, **kwargs):
             return meth_mock(self, *args, **kwargs)
@@ -366,9 +368,8 @@ def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs,
 
     decorated_mock = Mock(return_value=decorated_mock_return)
 
-    if PY2:
-        pass_mock.__name__ = str('before_mock')
-        decorated_mock.__name__ = str('decorated_mock')
+    pass_mock.__name__ = str('before_mock')
+    decorated_mock.__name__ = str('decorated_mock')
 
     kwargs[decor_name] = pass_mock
 
@@ -423,8 +424,7 @@ def test_decorator_constructor_no_mixing(decor, ret, kwargs, fn_args,
 
     pass_mock = Mock(return_value=ret)
 
-    if PY2:
-        pass_mock.__name__ = str('before_mock')
+    pass_mock.__name__ = str('before_mock')
 
     kwargs[decor.__name__] = pass_mock
 
@@ -443,6 +443,53 @@ def test_decorator_constructor_no_mixing(decor, ret, kwargs, fn_args,
 
 
 @pytest.mark.parametrize('decorator', [before, after, instead])
+def test_direct_method_decoration(decorator):
+    """Test the persistence across calls of extras"""
+
+    inst_tracker = Mock(name='inst_tracker', return_value=None)
+    cls_tracker = Mock(name='cls_tracker', return_value=None)
+    static_tracker = Mock(name='static_tracker', return_value=None)
+
+    inst_tracker.__name__ = str('inst_tracker')
+    cls_tracker.__name__ = str('cls_tracker')
+    static_tracker.__name__ = str('static_tracker')
+
+    class SomeClass(object):
+
+        @decorator(inst_tracker, pass_params=True)
+        def some_method(self):
+            pass
+
+        @classmethod
+        @decorator(cls_tracker, pass_params=True)
+        def some_clsmethod(cls):
+            pass
+
+        @staticmethod
+        @decorator(static_tracker, pass_params=True)
+        def some_staticmethod():
+            pass
+
+    sc = SomeClass()
+
+    sc.some_method(), sc.some_clsmethod(), sc.some_staticmethod()
+
+    for mock in inst_tracker, cls_tracker, static_tracker:
+
+        mock.assert_called_once()
+
+        called_with = mock.call_args[0]
+
+        if decorator is after:
+            args, kwargs = called_with[1:3]
+        else:
+            args, kwargs = called_with[:2]
+
+        assert args == ()
+        assert kwargs == {}
+
+
+@pytest.mark.parametrize('decorator', [before, after, instead])
 def test_extras_persistence(decorator):
     """Test the persistence across calls of extras"""
 
@@ -453,8 +500,7 @@ def test_extras_persistence(decorator):
 
     decorated = Mock(return_value=None)
 
-    if PY2:
-        decorated.__name__ = str('decorated_mock')
+    decorated.__name__ = str('decorated_mock')
 
     decorated = decorator(
         memo_func, pass_params=False, pass_result=False,
@@ -478,7 +524,7 @@ def test_extras_persistence_class(decorator):
 
     @decorator(memo_func, pass_params=False, pass_result=False,
                pass_decorated=False, memo=memo)
-    class GreatClass:
+    class GreatClass(object):
 
         def awesome_method(self):
             pass
@@ -507,22 +553,22 @@ def test_extras_persistence_class(decorator):
     for _ in range(2):
         GreatClass.classy_method()
 
-    assert len(memo) == 2
+    assert len(memo) == 4
 
     for _ in range(2):
         gc.classy_method()
 
-    assert len(memo) == 4
+    assert len(memo) == 6
 
     for _ in range(2):
         GreatClass.stately_method()
 
-    assert len(memo) == 4
+    assert len(memo) == 8
 
     for _ in range(2):
         gc.stately_method()
 
-    assert len(memo) == 6
+    assert len(memo) == 10
 
 
 @pytest.mark.parametrize('decorator', [before, after, instead])
@@ -537,7 +583,7 @@ def test_extras_persistence_class_inst_only(decorator):
     @decorator(memo_func, pass_params=False, pass_result=False,
                pass_decorated=False, instance_methods_only=True,
                memo=memo)
-    class GreatClass:
+    class GreatClass(object):
 
         def awesome_method(self):
             pass
@@ -584,60 +630,14 @@ def test_extras_persistence_class_inst_only(decorator):
     assert len(memo) == 2
 
 
-@pytest.mark.parametrize('raises, catch, reraise, include_handler', [
-    (Exception, Exception, ValueError, False),
-    (Exception, Exception, ValueError, True),
-    (None, Exception, ValueError, False),
-    (None, Exception, ValueError, True),
-    (Exception, Exception, None, False),
-    (Exception, Exception, None, True),
-    (Exception, RuntimeError, ValueError, False),  # won't catch
-    (Exception, RuntimeError, ValueError, True),  # won't catch
-])
-def test_intercept(raises, catch, reraise, include_handler):
-    """Test the intercept decorator"""
-    wrapped = Mock()
-
-    if PY2:
-        wrapped.__name__ = 'wrapped'
-
-    if raises is not None:
-        wrapped.side_effect = raises
-
-    handler = Mock() if include_handler else None
-
-    fn = intercept(catch=catch, reraise=reraise, handler=handler)(wrapped)
-
-    will_catch = raises and issubclass(raises, catch)
-
-    if reraise and will_catch:
-        with pytest.raises(reraise):
-            fn()
-    elif raises and not will_catch:
-        with pytest.raises(raises):
-            fn()
-    else:
-        fn()
-
-    if handler is not None and will_catch:
-        called_with = handler.call_args[0][0]
-        assert isinstance(called_with, raises)
-
-    if handler is not None and not will_catch:
-        handler.assert_not_called()
-
-    wrapped.assert_called_once_with(*(), **{})
-
-
 def test_stacking_before_after():
     """Test the stacking of before followed by after"""
     tracker = Mock(name='tracker', return_value=None)
 
     decorated = Mock(name='decorated', return_value='decorated')
 
-    if PY2:
-        for mock in tracker, decorated:
-            setattr(mock, '__name__', mock.name)
+    tracker.__name__ = str('tracker')
+    decorated.__name__ = str('decorated')
 
     fn = before(tracker)(decorated)
     fn = after(tracker)(fn)
@@ -663,9 +663,8 @@ def test_stacking_after_before():
 
     decorated = Mock(name='decorated', return_value='decorated')
 
-    if PY2:
-        for mock in tracker, decorated:
-            setattr(mock, '__name__', mock.name)
+    tracker.__name__ = str('tracker')
+    decorated.__name__ = str('decorated')
 
     fn = after(tracker)(decorated)
     fn = before(tracker)(fn)
@@ -698,9 +697,8 @@ def test_stacking_instead(decor):
 
     decorated = Mock(name='decorated', return_value='decorated')
 
-    if PY2:
-        for mock in tracker, decorated:
-            setattr(mock, '__name__', mock.name)
+    tracker.__name__ = str('tracker')
+    decorated.__name__ = str('decorated')
 
     fn = decor(tracker)(decorated)
     fn = instead(tracker)(fn)
@@ -722,9 +720,8 @@ def test_stacking_instead_before():
 
     decorated = Mock(name='decorated', return_value='decorated')
 
-    if PY2:
-        for mock in tracker, decorated:
-            setattr(mock, '__name__', mock.name)
+    tracker.__name__ = str('tracker')
+    decorated.__name__ = str('decorated')
 
     fn = instead(tracker)(decorated)
     fn = before(tracker)(fn)
@@ -754,9 +751,8 @@ def test_stacking_instead_after():
 
     decorated = Mock(name='decorated', return_value='decorated')
 
-    if PY2:
-        for mock in tracker, decorated:
-            setattr(mock, '__name__', mock.name)
+    tracker.__name__ = str('tracker')
+    decorated.__name__ = str('decorated')
 
     fn = instead(tracker)(decorated)
     fn = after(tracker)(fn)
@@ -786,9 +782,8 @@ def test_stacking_instead_before_after():
 
     decorated = Mock(name='decorated', return_value='decorated')
 
-    if PY2:
-        for mock in tracker, decorated:
-            setattr(mock, '__name__', mock.name)
+    tracker.__name__ = str('tracker')
+    decorated.__name__ = str('decorated')
 
     fn = instead(tracker)(decorated)
     fn = before(tracker)(fn)
@@ -823,9 +818,8 @@ def test_stacking_instead_after_before():
 
     decorated = Mock(name='decorated', return_value='decorated')
 
-    if PY2:
-        for mock in tracker, decorated:
-            setattr(mock, '__name__', mock.name)
+    tracker.__name__ = str('tracker')
+    decorated.__name__ = str('decorated')
 
     fn = instead(tracker)(decorated)
     fn = after(tracker)(fn)
@@ -849,3 +843,75 @@ def test_stacking_instead_after_before():
 
     assert after_call_args == (None, )
     assert after_call_kwargs == {}
+
+
+@pytest.mark.parametrize('raises, catch, reraise, include_handler', [
+    (Exception, Exception, ValueError, False),
+    (Exception, Exception, ValueError, True),
+    (None, Exception, ValueError, False),
+    (None, Exception, ValueError, True),
+    (Exception, Exception, None, False),
+    (Exception, Exception, None, True),
+    (Exception, RuntimeError, ValueError, False),  # won't catch
+    (Exception, RuntimeError, ValueError, True),  # won't catch
+])
+def test_intercept(raises, catch, reraise, include_handler):
+    """Test the intercept decorator"""
+    wrapped = Mock()
+
+    wrapped.__name__ = str('wrapped')
+
+    if raises is not None:
+        wrapped.side_effect = raises
+
+    handler = Mock(name='handler') if include_handler else None
+
+    if handler is not None:
+        handler.__name__ = str('handler')
+
+    fn = intercept(catch=catch, reraise=reraise, handler=handler)(wrapped)
+
+    will_catch = raises and issubclass(raises, catch)
+
+    if reraise and will_catch:
+        with pytest.raises(reraise):
+            fn()
+    elif raises and not will_catch:
+        with pytest.raises(raises):
+            fn()
+    else:
+        fn()
+
+    if handler is not None and will_catch:
+        called_with = handler.call_args[0][0]
+        assert isinstance(called_with, raises)
+
+    if handler is not None and not will_catch:
+        handler.assert_not_called()
+
+    wrapped.assert_called_once_with(*(), **{})
+
+
+def test_log_call():
+    """Test the log_call decorator"""
+    exp_logger = getLogger(__name__)
+    exp_logger.debug = Mock()
+
+    @log_call(level='debug')
+    def func(*args, **kwargs):
+        return 'foo'
+
+    call_args = ('a', )
+    call_kwargs = {'b': 'c'}
+
+    call_res = func(*call_args, **call_kwargs)
+
+    exp_msg = LOG_CALL_FMT_STR.format(
+        name='func',
+        args=call_args,
+        kwargs=call_kwargs,
+        result=call_res
+    )
+
+    exp_logger.debug.assert_called_once_with(exp_msg)
+

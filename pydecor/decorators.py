@@ -11,6 +11,7 @@ __all__ = (
     'decorate',
     'instead',
     'intercept',
+    'log_call',
     'DecoratorType',
 )
 
@@ -21,8 +22,9 @@ from functools import partial, wraps
 from types import FunctionType, MethodType
 from typing import Union
 
-from ._util import ClassWrapper
-from .functions import interceptor
+from . import functions
+from ._util import ClassWrapper, get_fn_args
+from .constants import LOG_CALL_FMT_STR
 
 log = getLogger(__name__)
 
@@ -110,7 +112,7 @@ def before(func, pass_params=False, pass_decorated=False,
         (default ``"extras"``) the key to which to assign extra
         decorator keyword arguments when ``unpack_extras`` is ``False``
 
-    :param dict extras:
+    :param **dict extras:
         any extra keyword arguments supplied to the decoration call
     
     :return: the decorated function/method/class
@@ -123,14 +125,13 @@ def before(func, pass_params=False, pass_decorated=False,
         def wrapper(*args, **kwargs):
             """The function that replaces the decorated one"""
 
-            # import ipdb; ipdb.set_trace()
-
             fkwargs = extras if unpack_extras else {extras_key: extras}
 
             fn = func
 
             if pass_params:
-                fn = partial(fn, args, kwargs)
+                fn_args = get_fn_args(decorated, args)
+                fn = partial(fn, fn_args, kwargs)
 
             if pass_decorated:
                 fn = partial(fn, decorated)
@@ -244,7 +245,7 @@ def after(func, pass_params=False, pass_result=True, pass_decorated=False,
         (default ``"extras"``) the key to which to assign extra
         decorator keyword arguments when ``unpack_extras`` is ``False``
 
-    :param dict extras:
+    :param **dict extras:
         any extra keyword arguments supplied to the decoration call
 
     :return: the decorated function/method/class
@@ -265,7 +266,8 @@ def after(func, pass_params=False, pass_result=True, pass_decorated=False,
                 fn = partial(fn, ret)
 
             if pass_params:
-                fn = partial(fn, args, kwargs)
+                fn_args = get_fn_args(decorated, args)
+                fn = partial(fn, fn_args, kwargs)
 
             if pass_decorated:
                 fn = partial(fn, decorated)
@@ -360,7 +362,7 @@ def instead(func, pass_params=True, pass_decorated=True,
         (default ``"extras"``) the key to which to assign extra
         decorator keyword arguments when ``unpack_extras`` is ``False``
 
-    :param dict extras:
+    :param **dict extras:
         any extra keyword arguments supplied to the decoration call
 
     :return: the decorated function/method/class
@@ -376,7 +378,8 @@ def instead(func, pass_params=True, pass_decorated=True,
             fn = func
 
             if pass_params:
-                fn = partial(fn, args, kwargs)
+                fn_args = get_fn_args(decorated, args)
+                fn = partial(fn, fn_args, kwargs)
 
             if pass_decorated:
                 fn = partial(fn, decorated)
@@ -490,7 +493,7 @@ def decorate(before=None, after=None, instead=None, before_opts=None,
         ``False``. If provided, this key serves as the default
         for the various decorators.
 
-    :param dict extras:
+    :param **dict extras:
         any extra keyword arguments supplied to the decoration call
 
     :return: the decorated function/method/class
@@ -635,10 +638,64 @@ def intercept(catch=Exception, reraise=None, handler=None):
         nothing will be done with the caught exception
     """
     return instead(
-        interceptor,
+        functions.intercept,
         catch=catch,
         reraise=reraise,
         handler=handler,
+    )
+
+
+def log_call(logger=None, level='info', format_str=LOG_CALL_FMT_STR):
+    """Log the name, parameters, & result of a function call
+
+    If not provided, a logger instance will be retrieved corresponding
+    to the module name of the decorated function, so if you decorate
+    the function ``do_magic()`` in the module ``magic.py``, the
+    retrieved logger will be the same as one retrieved in ``magic.py``
+    with ``logging.getLogger(__name__)``
+
+    The ``level`` provided here **does not** set the log level of the
+    passed or retrieved logger. It just determines what level the
+    generated message should be logged with.
+
+    Example:
+
+    * Assume the following is found in ``log_example.py``
+
+    .. code:: python
+
+        from pydecor import log_call
+
+        @log_call
+        def return_none(*args, **kwargs):
+            return None
+
+        return_none('alright', my='man')
+
+        # Will retrieve the ``log_example`` logger
+        # and log the message:
+        # "return_none(*('alright', ), **{'my': 'man'}) -> None"
+
+    :param Optional[logging.Logger] logger: an optional Logger
+        instance. If not provided, the logger corresponding to the
+        decorated function's module name will be retrieved
+    :param str level: the level with which to log the message. Must
+        be an acceptable Python log level
+    :param str format_str: the format string to use when interpolating
+        the message. This defaults to
+        ``'{name}(*{args}, **{kwargs}) -> {result}'``. Any provided
+        format string should contain the same keys, which will be
+        interpolated appropriately.
+
+    :rtype: None
+    """
+    return after(
+        functions.log_call,
+        pass_params=True,
+        pass_decorated=True,
+        logger=logger,
+        level=level,
+        format_str=format_str
     )
 
 

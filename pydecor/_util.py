@@ -8,8 +8,11 @@ from __future__ import absolute_import, unicode_literals
 __all__ = ('ClassWrapper', )
 
 
+from functools import partial
+from inspect import isclass
 from logging import getLogger
 from sys import version_info
+from types import MethodType
 
 from inspect import isfunction, ismethod
 
@@ -18,6 +21,45 @@ log = getLogger(__name__)
 
 
 PY2 = version_info < (3, 0)
+
+
+def get_fn_args(decorated, args):
+    """Strip "self" and "cls" variables from args
+
+    For now, this avoids assuming that the "self" variable is called
+    "self" on instance methods, although if this winds up being
+    problematic for edge use cases, I might move to that model
+    and make it clear that instance methods for which "self"
+    isn't called "self" won't have their "self" argument stripped.
+    """
+    fn_args = args
+    decor_name = decorated.__name__
+
+    # Check if the wrapped function is an attribute on args[0]
+    if args and decor_name in dir(args[0]):
+
+        # Check if args[0] is a class reference
+        if isclass(args[0]):
+            # Check if the wrapped function is a classmethod on the
+            # class' class dict
+            if type(args[0].__dict__[decor_name]) is classmethod:
+                # The first argument is a reference to the class
+                # containing the decorated function
+                fn_args = args[1:]
+
+        # Check if args[0] is a function defined on the class
+        else:
+            cls_dict = args[0].__class__.__dict__
+
+            # Check if the wrapped function is a function on the class'
+            # class dict (instance methods are functions on the class
+            # dict, while classmethods and staticmethods are their own
+            # types)
+            if decor_name in cls_dict and isfunction(cls_dict[decor_name]):
+                # The first argument is probably a "self" variable
+                fn_args = args[1:]
+
+    return fn_args
 
 
 class ClassWrapper(object):
@@ -90,10 +132,7 @@ class ClassWrapper(object):
                 if type(cls_attr) is staticmethod:
                     return attr
 
-            if PY2:
-                return decor(attr)
-            else:
-                return decor(attr)
+            return decor(attr)
 
         return attr
 
@@ -110,7 +149,20 @@ class ClassWrapper(object):
 
         for k, v in wrapped.__dict__.items():
             if not k.startswith('__'):
-                attrs[k] = v
+                if not instance_methods_only:
+                    if type(v) is classmethod:
+                        attrs[k] = partial(decorator(v.__func__), wrapped)
+                    elif type(v) is staticmethod:
+                        if PY2:
+                            attrs[k] = staticmethod(
+                                partial(decorator(v.__func__))
+                            )
+                        else:
+                            attrs[k] = decorator(v.__func__)
+                    else:
+                        attrs[k] = v
+                else:
+                    attrs[k] = v
 
         attrs.update(
             {

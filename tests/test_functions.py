@@ -8,13 +8,16 @@ except ImportError:
     from mock import Mock
 
 from functools import partial
+from logging import getLogger
 
 
 import pytest
 
 
+from pydecor.constants import LOG_CALL_FMT_STR
 from pydecor.functions import (
-    interceptor,
+    intercept,
+    log_call
 )
 
 
@@ -29,14 +32,14 @@ from pydecor.functions import (
     (Exception, RuntimeError, ValueError, True),  # won't catch
 ])
 def test_interceptor(raises, catch, reraise, include_handler):
-    """Test the interceptor function"""
+    """Test the intercept function"""
     wrapped = Mock()
     if raises is not None:
         wrapped.side_effect = raises
 
     handler = Mock() if include_handler else None
 
-    fn = partial(interceptor, (), {}, wrapped, catch=catch, reraise=reraise,
+    fn = partial(intercept, (), {}, wrapped, catch=catch, reraise=reraise,
                  handler=handler)
 
     will_catch = raises and issubclass(raises, catch)
@@ -58,3 +61,27 @@ def test_interceptor(raises, catch, reraise, include_handler):
         handler.assert_not_called()
 
     wrapped.assert_called_once_with(*(), **{})
+
+
+def test_log_call():
+    """Test automatic logging"""
+    exp_logger = getLogger(__name__)
+    exp_logger.debug = Mock()
+
+    def func(*args, **kwargs):
+        return 'foo'
+
+    call_args = ('a', )
+    call_kwargs = {'b': 'c'}
+    call_res = func(*call_args, **call_kwargs)
+
+    log_call(call_res, call_args, call_kwargs, func, level='debug')
+
+    exp_msg = LOG_CALL_FMT_STR.format(
+        name='func',
+        args=call_args,
+        kwargs=call_kwargs,
+        result=call_res
+    )
+
+    exp_logger.debug.assert_called_once_with(exp_msg)

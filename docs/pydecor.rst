@@ -8,6 +8,7 @@ Submodules
 
    pydecor._util
    pydecor._version
+   pydecor.constants
    pydecor.decorators
    pydecor.functions
 
