@@ -720,7 +720,7 @@ Credits and Links
 .. _`pep 484`: https://www.python.org/dev/peps/pep-0484/
 .. _six: https://pythonhosted.org/six/
 .. _`typing backport`: https://pypi.org/project/typing/
-.. _docs: ihiji-auth-mw-ks-test
+.. _docs: https://pythonhosted.org/pydecor/#
 .. _`decorator module docs`:
     https://pythonhosted.org/pydecor/pydecor.decorators.html
 .. _issues: https://github.com/mplanchard/pydecor/issues
