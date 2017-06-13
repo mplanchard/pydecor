@@ -9,7 +9,7 @@ Easy-peasy Python decorators!
 * GitHub: https://github.com/mplanchard/pydecor
 * PyPI: https://pypi.python.org/pypi/pydecor
 * Docs: https://pythonhosted.org/pydecor/
-* Contact: ``mplanchard`` ``@`` ``gmail`` or @msplanchard on Twitter
+* Contact: ``msplanchard`` ``@`` ``gmail`` or @msplanchard on Twitter
 
 
 Summary
@@ -85,7 +85,7 @@ Why PyDecor?
 
 * **It's fast!**
 
-  The test suite for this library (328 tests of this writing) runs in
+  The test suite for this library (328 tests as of this writing) runs in
   about 0.88 seconds, on average. That's hundreds of decorations, plus py.test
   spinup time, plus a bunch of complicated mocking.
 
@@ -698,7 +698,7 @@ Any new functionality is expected to come with appropriate tests. That being
 said, the test suite is fairly complex, with lots of mocking and
 parametrization. Don't feel as though you have to follow this pattern when
 writing new tests! A bunch of simpler tests are just as good. If you have any
-questions, feel free to reach out to me via email at ``mplanchard`` ``@``
+questions, feel free to reach out to me via email at ``msplanchard`` ``@``
 ``gmail`` or on Twitter as @msplanchard.
 
 
