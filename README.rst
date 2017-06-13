@@ -1,6 +1,9 @@
 PyDecor
 =======
 
+.. image:: https://travis-ci.org/mplanchard/pydecor.svg?branch=master
+   :target: https://travis-ci.org/mplanchard/pydecor
+
 Easy-peasy Python decorators!
 
 * GitHub: https://github.com/mplanchard/pydecor
