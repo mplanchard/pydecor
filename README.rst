@@ -6,6 +6,7 @@ Easy-peasy Python decorators!
 * GitHub: https://github.com/mplanchard/pydecor
 * PyPI: https://pypi.python.org/pypi/pydecor
 * Docs: https://pythonhosted.org/pydecor/
+* Contact: ``mplanchard`` ``@`` ``gmail`` or @msplanchard on Twitter
 
 
 Summary
@@ -81,7 +82,7 @@ Why PyDecor?
 
 * **It's fast!**
 
-  The test suite for this library (326 tests of this writing) runs in
+  The test suite for this library (328 tests of this writing) runs in
   about 0.88 seconds, on average. That's hundreds of decorations, plus py.test
   spinup time, plus a bunch of complicated mocking.
 
@@ -173,6 +174,10 @@ Provided Decorators
 This package provides generic decorators, which can be used with any
 function to provide extra utility to decorated resources, as well
 as convenience decorators implemented using those generic decorators.
+
+While the information below is enough to get you started, I highly
+recommend checking out the `decorator module docs`_ to see all the
+options and details for the various decorators!
 
 Generics
 ~~~~~~~~
@@ -325,7 +330,7 @@ standard if you can (just FYI, ``"self"`` is the more likely of the two to
 wind up being required).
 
 Examples
-********
+--------
 
 Below are some examples for the generic and standard decorators. Please
 check out the API Docs for more information, and also check out the
@@ -333,7 +338,7 @@ convenience decorators, which are all implemented using the
 ``before``, ``after``, and ``instead`` decorators from this library.
 
 Update a Function's Args or Kwargs
-----------------------------------
+**********************************
 
 Functions passed to ``@before`` can either return None, in which case nothing
 happens to the decorated functions parameters, or they can return a tuple
@@ -372,7 +377,7 @@ The output?
     A serious kwarg: spam
 
 Do Something with a Function's Return Value
--------------------------------------------
+*******************************************
 
 Functions passed to ``@after`` receive the decorated function's return value
 by default. If ``@after`` returns None, the return value is sent back
@@ -406,7 +411,7 @@ The output?
 
 
 Do Something Instead of a Function
-----------------------------------
+**********************************
 
 Functions passed to ``@instead`` by default receive the args and kwargs of
 the decorated function, along with a reference to that function. But, they
@@ -437,6 +442,172 @@ whatever reason.
 The output?
 
 (There is no output, because the function was skipped)
+
+
+Automatically Log Function Calls and Results
+********************************************
+
+Maybe you want to make sure your functions get logged without having to
+bother with the logging boilerplate each time. ``@log_call`` tries to
+automatically get a logging instance corresponding to the module
+in which the decoration occurs (in the same way as if you made a call
+to ``logging.getLogger(__name__)``, or you can pass it your own, fancy,
+custom, spoiler-bedecked logger instance.
+
+.. code:: python
+
+    from logging import getLogger, StreamHandler
+    from sys import stdout
+
+    from pydecor import log_call
+
+
+    # We're just getting a logger here so we can see the output. This isn't
+    # actually necessary for @log_call to work!
+    log = getLogger(__name__)
+    log.setLevel('DEBUG')
+    log.addHandler(StreamHandler(stdout))
+
+
+    @log_call()
+    def get_schwifty(*args, **kwargs):
+        """Get schwifty in heeeeere"""
+        return "Gettin' Schwifty"
+
+
+    get_schwifty('wubba', 'lubba', dub='dub')
+
+
+And the output?
+
+.. code::
+
+    get_schwifty(*('wubba', 'lubba'), **{'dub': 'dub'}) -> Gettin' Schwifty
+
+
+Intercept an Exception and Re-raise a Custom One
+************************************************
+
+Are you a put-upon library developer tired of constantly having to re-raise
+custom exceptions so that users of your library can have one nice try/except
+looking for your base exception? Let's make that easier:
+
+.. code:: python
+
+    from pydecor import intercept
+
+
+    class BetterException(Exception):
+        """Much better than all those other exceptions"""
+
+
+    @intercept(catch=RuntimeError, reraise=BetterException)
+    def sometimes_i_error(val):
+        """Sometimes, this function raises an exception"""
+        if val > 5:
+            raise RuntimeError('This value is too big!')
+
+
+    for i in range(7):
+        sometimes_i_error(i)
+
+
+The output?
+
+.. code::
+
+    Traceback (most recent call last):
+      File "/Users/Nautilus/Library/Preferences/PyCharm2017.1/scratches/scratch_1.py", line 88, in <module>
+        sometimes_i_error(i)
+      File "/Users/Nautilus/Documents/Programming/pydecor/pydecor/decorators.py", line 389, in wrapper
+        return fn(**fkwargs)
+      File "/Users/Nautilus/Documents/Programming/pydecor/pydecor/functions.py", line 58, in intercept
+        raise_from(new_exc, context)
+      File "<string>", line 2, in raise_from
+    __main__.BetterException: This value is too big!
+
+
+Intercept an Exception, Do Something, and Re-raise the Original
+***************************************************************
+
+Maybe you don't *want* to raise a custom exception. Maybe the original
+one was just fine. All you want to do is print a special message before
+re-raising the original exception. PyDecor has you covered:
+
+.. code:: python
+
+    from pydecor import intercept
+
+
+    def print_exception(exc):
+        """Make sure stdout knows about our exceptions"""
+        print('Houston, we have a problem: {}'.format(exc))
+
+
+    @intercept(catch=Exception, handler=print_exception, reraise=True)
+    def assert_false():
+        """All I do is assert that False is True"""
+        assert False, 'Turns out, False is not True'
+
+
+    assert_false()
+
+And the output:
+
+.. code::
+
+    Houston, we have a problem: Turns out, False is not True
+    Traceback (most recent call last):
+      File "/Users/Nautilus/Library/Preferences/PyCharm2017.1/scratches/scratch_1.py", line 105, in <module>
+        assert_false()
+      File "/Users/Nautilus/Documents/Programming/pydecor/pydecor/decorators.py", line 389, in wrapper
+        return fn(**fkwargs)
+      File "/Users/Nautilus/Documents/Programming/pydecor/pydecor/functions.py", line 49, in intercept
+        return decorated(*decorated_args, **decorated_kwargs)
+      File "/Users/Nautilus/Library/Preferences/PyCharm2017.1/scratches/scratch_1.py", line 102, in assert_false
+        assert False, 'Turns out, False is not True'
+    AssertionError: Turns out, False is not True
+
+
+Intercept an Exception, Handle, and Be Done with It
+***************************************************
+
+Sometimes an exception isn't the end of the world, and it doesn't need to
+bubble up to the top of your application. In these cases, maybe just handle
+it and don't re-raise:
+
+.. code:: python
+
+    from pydecor import intercept
+
+
+    def let_us_know_it_happened(exc):
+        """Just let us know an exception happened (if we are reading stdout)"""
+        print('This non-critical exception happened: {}'.format(exc))
+
+
+    @intercept(catch=ValueError, handler=let_us_know_it_happened)
+    def resilient_function(val):
+        """I am so resilient!"""
+        val = int(val)
+        print('If I get here, I have an integer: {}'.format(val))
+
+
+    resilient_function('50')
+    resilient_function('foo')
+
+Output:
+
+.. code::
+
+    If I get here, I have an integer: 50
+    This non-critical exception happened: invalid literal for int() with base 10: 'foo'
+
+Note that the function does *not* continue running after the exception is
+handled. Use this for short-circuiting under certain conditions rather
+than for instituting a ``try/except:pass`` block. Maybe one day I'll figure
+out how to make this work like that, but as it stands, the decorator surrounds
+the entire function, so it does not provide that fine-grained level of control.
 
 
 Roadmap
@@ -472,6 +643,61 @@ and docstring hints will be removed so that contributors don't have
 to adjust type specifications in two places.
 
 
+1.1.x
+*****
+
+A more automated build process, because remembering all the steps to push a
+new version is a pain. This is marked as scheduled for a patch release,
+because it does not affect users at all, so a minor version bump would
+lead people on to thinking that some new functionality had been added, when
+it hadn't.
+
+
+Contributing
+------------
+
+Contributions are welcome! If you find a bug or if something doesn't
+work the way you think it should, please `raise an issue <issues_>`_.
+If you know how to fix the bug, please `open a PR! <prs_>`_
+
+I absolutely welcome any level of contribution. If you think the docs
+could be better, or if you've found a typo, please open up a PR to improve
+and/or fix them.
+
+Contributor Conduct
+*******************
+
+There is a ``CODE_OF_CONDUCT.md`` file with details, based on one of GitHub's
+templates, but the upshot is that I expect everyone who contributes to this
+project to do their best to be helpful, friendly, and patient. Discrimination
+of any kind will not be tolerated and will be promptly reported to GitHub.
+
+On a personal note, Open Source survives because of people who are willing to
+contribute their time and effort for free. The least we can do is treat them
+with respect.
+
+Tests
+*****
+
+Tests are fairly easy to run, with few dependencies. You'll need Python 2.7,
+3.4, and 3.6 installed on your system to run the full suite, as well as tox_
+in whatever environment or virtual environment you're using. From there, you
+should just be able to run ``tox``. The underlying test suite is `py.test`_,
+and any extra arguments passed to tox get sent along. For example, to
+send stdout/stderr to the console and stop on the first failure,
+``tox -- -sx``. You can also run `py.test`_ directly. If you do, make sure
+the deps specified in ``tox.ini`` are installed to your virtualenv, and
+install the package in development mode with ``pip install -e .``.
+
+PRs that cause tests to fail will not be merged until tests pass.
+
+Any new functionality is expected to come with appropriate tests. That being
+said, the test suite is fairly complex, with lots of mocking and
+parametrization. Don't feel as though you have to follow this pattern when
+writing new tests! A bunch of simpler tests are just as good. If you have any
+questions, feel free to reach out to me via email at ``mplanchard`` ``@``
+``gmail`` or on Twitter as @msplanchard.
+
 
 Credits and Links
 -----------------
@@ -494,3 +720,8 @@ Credits and Links
 .. _`pep 484`: https://www.python.org/dev/peps/pep-0484/
 .. _six: https://pythonhosted.org/six/
 .. _`typing backport`: https://pypi.org/project/typing/
+.. _docs: ihiji-auth-mw-ks-test
+.. _`decorator module docs`:
+    https://pythonhosted.org/pydecor/pydecor.decorators.html
+.. _issues: https://github.com/mplanchard/pydecor/issues
+.. _PRs: https://github.com/mplanchard/pydecor/pulls

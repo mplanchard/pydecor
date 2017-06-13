@@ -24,28 +24,47 @@ PY2 = version_info < (3, 0)
 
 
 def intercept(decorated_args, decorated_kwargs, decorated, catch=Exception,
-              reraise=None, handler=None):
+              reraise=None, handler=None, err_msg=None, include_context=False):
     """Intercept an error and either re-raise, handle, or both
 
     Designed to be called via the ``instead`` decorator.
 
     :param Callable decorated: the decorated function
     :param Type[Exception] catch: an exception to intercept
-    :param Type[Exception] reraise: if provided, will re-raise
+    :param Union[bool, Type[Exception]] reraise: if provided, will re-raise
         the provided exception, after running any provided
-        handler callable
+        handler callable. If ``False`` or ``None``, no exception
+        will be re-raised.
     :param Callable[[Type[Exception]],Any] handler: a function
         to call with the caught exception as its only argument.
         If not provided, nothing will be done with the caught
         exception.
+    :param str err_msg: if included will be used to instantiate
+        the exception. If not included, the caught exception will
+        be cast to a string and used instead
+    :param include_context: if True, the previous exception will
+        be included in the exception context.
     """
     try:
         return decorated(*decorated_args, **decorated_kwargs)
+
     except catch as exc:
         if handler is not None:
             handler(exc)
-        if reraise is not None:
-            raise_from(reraise, None)
+
+        if isinstance(reraise, bool):
+            if reraise:
+                raise
+
+        elif reraise is not None:
+
+            if err_msg is not None:
+                new_exc = reraise(err_msg)
+            else:
+                new_exc = reraise(str(exc))
+
+            context = exc if include_context else None
+            raise_from(new_exc, context)
 
 
 def log_call(result, args, kwargs, func, logger=None, level='info',

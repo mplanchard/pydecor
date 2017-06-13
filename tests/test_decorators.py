@@ -848,6 +848,8 @@ def test_stacking_instead_after_before():
 @pytest.mark.parametrize('raises, catch, reraise, include_handler', [
     (Exception, Exception, ValueError, False),
     (Exception, Exception, ValueError, True),
+    (Exception, Exception, True, True),
+    (Exception, Exception, True, False),
     (None, Exception, ValueError, False),
     (None, Exception, ValueError, True),
     (Exception, Exception, None, False),
@@ -874,7 +876,8 @@ def test_intercept(raises, catch, reraise, include_handler):
     will_catch = raises and issubclass(raises, catch)
 
     if reraise and will_catch:
-        with pytest.raises(reraise):
+        to_be_raised = raises if reraise is True else reraise
+        with pytest.raises(to_be_raised):
             fn()
     elif raises and not will_catch:
         with pytest.raises(raises):

@@ -594,7 +594,8 @@ def construct_decorator(before=None, after=None, instead=None,
     )
 
 
-def intercept(catch=Exception, reraise=None, handler=None):
+def intercept(catch=Exception, reraise=None, handler=None, err_msg=None,
+              include_context=False):
     """Intercept an exception and either re-raise, handle, or both
 
     Example:
@@ -631,17 +632,31 @@ def intercept(catch=Exception, reraise=None, handler=None):
 
 
     :param Type[Exception] catch: the exception to catch
-    :param Type[Exception] reraise: the exception to re-raise. If not
-        provided, the exception will not be re-raised.
+    :param Union[bool, Type[Exception]] reraise: the exception to
+        re-raise or ``True``. If an exception is provided, that
+        exception will be raised. If ``True``, the original
+        exception will be re-raised. If ``False`` or ``None``,
+        no exception will be raised. Note that if a ``handler``
+        is provided, it will always be called prior to re-raising.
     :param Callable[[Type[Exception]],Any] handler: a function to call
         with the caught exception as its only argument. If not provided,
         nothing will be done with the caught exception
+    :param str err_msg: An optional string with which to call the
+        re-raised exception. If not provided, the caught exception
+        will be cast to a string and used instead.
+    :param include_context: if True, the previous exception will be
+        included in the context of the re-raised exception, which
+        means the traceback will show both exceptions, noting that
+        the first exception "was the direct cause of the following
+        exception"
     """
     return instead(
         functions.intercept,
         catch=catch,
         reraise=reraise,
         handler=handler,
+        err_msg=err_msg,
+        include_context=include_context
     )
 
 
@@ -687,7 +702,7 @@ def log_call(logger=None, level='info', format_str=LOG_CALL_FMT_STR):
         format string should contain the same keys, which will be
         interpolated appropriately.
 
-    :rtype: None
+    :rtype: DecoratorType
     """
     return after(
         functions.log_call,
