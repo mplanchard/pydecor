@@ -22,9 +22,9 @@ I still find myself looking up the syntax every time. And that's just for
 simple function decorators. Getting decorators to work consistently at the
 class and method level is a whole 'nother barrel of worms.
 
-PyDecor aims to make function easy and straightforward, so that developers
-can stop worrying about closures and syntax in triply nested functions and
-instead get down to decorating!
+PyDecor aims to make function decoration easy and straightforward, so that
+developers can stop worrying about closures and syntax in triply nested
+functions and instead get down to decorating!
 
 .. contents:: Table of Contents
 
@@ -241,6 +241,91 @@ Every generic decorator takes the following keyword arguments:
   is passed into the provided callable.
 * ``extras_key`` - the keyword to use when passing extras into the provided
   callable if ``unpack_extras`` is False
+
+In addition to easy-to-use generics, a ``construct_decorator`` function is
+provided, which can be used to easily make a new decorator with any combination
+of ``@before``, ``@after``, and ``@instead`` functionality. Let's make a
+decorator that announces when we're starting an exiting a function:
+
+.. code:: python
+
+    from pydecor import construct_decorator
+
+    def before_func(decorated_func):
+        print('Starting decorated function '
+              '"{}"'.format(decorated_func.__name__))
+
+    def after_func(decorated_result, decorated_func):
+        print('"{}" gave result "{}"'.format(
+            decorated_func.__name__, decorated_result
+        ))
+
+    my_decorator = construct_decorator(
+        before=before_func,
+        after=after_func,
+        before_opts={'pass_decorated': True},
+        after_opts={'pass_decorated': True},
+    )
+
+    @my_decorator()
+    def this_function_returns_nothing():
+        return 'nothing'
+
+And the output?
+
+.. code::
+
+    Starting decorated function "this_function_returns_nothing"
+    "this_function_returns_nothing" gave result "nothing"
+
+
+Maybe a more realistic example would be useful. Let's say we want to add
+headers to a Flask response.
+
+.. python::
+
+
+    from flask import Flask, Response, make_response
+    from pydecor import construct_decorator
+
+
+    def _set_app_json_header(response):
+        # Ensure the response is a Response object, even if a tuple was
+        # returned by the view function.
+        response = make_response(response)
+        response.headers.set('Content-Type', 'application/json')
+        return response
+
+
+    application_json = construct_decorator(after=_set_app_json_header)
+
+
+    # Now you can decorate any Flask view, and your headers will be set.
+
+    app = Flask(__name__)
+
+    # Note that you must decorate "before" (closer to) the function than the
+    # app.route() decoration, because the route decorator must be called on
+    # the "finalized" version of your function
+
+    @app.route('/')
+    @application_json()
+    def root_view():
+        return 'Hello, world!'
+
+    client = app.test_client()
+    response = app.get('/')
+
+    print(response.headers)
+
+
+The output?
+
+..code::
+
+    Content-Type: application/json
+    Content-Length: 13
+
 
 Convenience
 ~~~~~~~~~~~

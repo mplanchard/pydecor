@@ -29,7 +29,9 @@ def intercept(decorated_args, decorated_kwargs, decorated, catch=Exception,
 
     Designed to be called via the ``instead`` decorator.
 
-    :param Callable decorated: the decorated function
+    :param tuple decorated_args: args from the decorated function
+    :param dict decorated_kwargs: kwargs from the decorated function
+    :param Callable decorated: the decorated function itself
     :param Type[Exception] catch: an exception to intercept
     :param Union[bool, Type[Exception]] reraise: if provided, will re-raise
         the provided exception, after running any provided
