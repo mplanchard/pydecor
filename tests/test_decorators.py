@@ -24,6 +24,7 @@ from pydecor.decorators import (
     decorate,
     instead,
     intercept,
+    memoize,
 )
 
 
@@ -918,3 +919,23 @@ def test_log_call():
 
     exp_logger.debug.assert_called_once_with(exp_msg)
 
+
+@pytest.mark.parametrize('args, kwargs', (
+    (('a', 'b'), {'c': 'd'}),
+))
+def test_memoize_basic(args, kwargs):
+    """Test basic use of the memoize decorator"""
+    tracker = Mock(return_value='foo')
+
+    @memoize()
+    def func(*args, **kwargs):
+        return tracker(args, kwargs)
+
+    func(*args, **kwargs)
+    tracker.assert_called_once_with(args, kwargs)
+
+    func(*args, **kwargs)
+    assert len(tracker.mock_calls) == 1
+
+    func(*args, **kwargs)
+    assert len(tracker.mock_calls) == 1

@@ -18,6 +18,7 @@ from sys import version_info
 
 
 from .constants import LOG_CALL_FMT_STR
+from ._memoization import convert_to_hashable
 
 
 PY2 = version_info < (3, 0)
@@ -97,3 +98,20 @@ def log_call(result, args, kwargs, func, logger=None, level='info',
         result=result
     )
     log_fn(msg)
+
+
+def memoize(args, kwargs, func, memo):
+    """Return a memoized result if possible, store if not present
+
+    :param args: function args
+    :param kwargs: function kwargs
+    :param func: a reference to the function
+    :param memo: the memoization cache. Must support standard
+        __getitem__ and __setitem__ calls
+    """
+    key = convert_to_hashable(args, kwargs)
+    if key in memo:
+        return memo[key]
+    res = func(*args, **kwargs)
+    memo[key] = res
+    return res

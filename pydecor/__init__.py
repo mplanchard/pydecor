@@ -11,4 +11,5 @@ from .decorators import (
     instead,
     intercept,
     log_call,
+    memoize,
 )

@@ -12,6 +12,7 @@ __all__ = (
     'instead',
     'intercept',
     'log_call',
+    'memoize',
     'DecoratorType',
 )
 
@@ -25,6 +26,7 @@ from typing import Union
 from . import functions
 from ._util import ClassWrapper, get_fn_args
 from .constants import LOG_CALL_FMT_STR
+from .caches import LRUCache
 
 log = getLogger(__name__)
 
@@ -711,6 +713,29 @@ def log_call(logger=None, level='info', format_str=LOG_CALL_FMT_STR):
         logger=logger,
         level=level,
         format_str=format_str
+    )
+
+
+def memoize(max_size=0, cache_class=LRUCache):
+    """Memoize the decorated function
+
+    :param int max_size: the maximum size of the cache. By default
+        this is 0, which means the cache can grow indefinitely.
+    :param cache_class: the cache to store function results.
+        Any class that supports __getitem__, __setitem__,
+        and __contains__ should work just fine here. The
+        max_size is passed in as an instantiation parameter,
+        so that should also be supported. In addition to
+        the default LRUCache, a LIFOCache and a TimedCache
+        are provided in ``pydecor.caches``.
+
+    :rtype: DecoratorType
+    """
+    return instead(
+        functions.memoize,
+        pass_params=True,
+        pass_decorated=True,
+        memo=cache_class(max_size)
     )
 
 
