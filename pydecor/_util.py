@@ -8,11 +8,10 @@ from __future__ import absolute_import, unicode_literals
 __all__ = ('ClassWrapper', )
 
 
-from functools import partial
+from functools import partial, wraps
 from inspect import isclass
 from logging import getLogger
 from sys import version_info
-from types import MethodType
 
 from inspect import isfunction, ismethod
 
@@ -195,3 +194,114 @@ class ClassWrapper(object):
             # {'__decorator__': decorator}
             cls._get_class_attrs(wrapped, decorator, instance_methods_only)
         )
+
+
+class Decorated(object):
+    """A representation of a decorated class
+
+    This user-immutable object provides information about the decorated
+    class, method, or function. The decorated callable can be called
+    by directly calling the ``Decorated`` instance, or via the
+    ``wrapped`` instance attribute.
+
+    The example below illustrates direct instantiation of the
+    ``Decorated`` class, but generally you will only deal with
+    instances of this class when they are passed to the functions
+    specified on generic decorators.
+
+    .. python::
+
+        from pydecor import Decorated
+
+        def some_function(*args, **kwargs):
+            return 'foo'
+
+        decorated = Decorated(some_function, ('a', 'b'), {'c': 'c'})
+
+        assert decorated.wrapped.__name__ == some_function.__name__
+        assert decorated.args == ('a', 'b')
+        assert decorated.kwargs == {'c': 'c'}
+        assert decorated.result is None  # has not yet been called
+
+        res = decorated(decorated.args, decorated.kwargs)
+
+        assert 'foo' == res == decorated.result
+
+    .. note::
+
+        identity tests ``decorated.wrapped is some_decorated_function``
+        will not work on the ``wrapped`` attribute of a ``Decorated``
+        instance, because internally the wrapped callable is wrapped
+        in a method that ensures that ``Decorated.result`` is set
+        whenever the callable is called. It is wrapped using
+        ``functools.wraps``, so attributes like ``__name__``,
+        ``__doc__``, ``__module__``, etc. should still be the
+        same as on an actual reference.
+
+        If you need to access a real reference to the wrapped
+        function for any reason, you can do so by accessing
+        the ``__wrapped__`` property, on ``wrapped``, which is
+        set by ``functools.wraps``, e.g.
+        ``decorated.wrapped.__wrapped__``.
+
+    :param wrapped: a reference to the wrapped callable. Calling the
+        wrapped callable via this reference will set the ``result``
+        attribute.
+    :param args: a tuple of arguments with which the decorated function
+        was called
+    :param kwargs: a dict of arguments with which the decorated function
+        was called
+    :param result: either ``None`` if the wrapped callable has not yet
+        been called or the result of that call
+    """
+
+    __slots__ = ('args', 'kwargs', 'wrapped', 'result')
+
+    def __init__(self, wrapped, args, kwargs, result=None):
+        """Instantiate a Decorated object
+
+        :param callable wrapped: the callable object being wrapped
+        :param tuple args: args with which the callable was called
+        :param dict kwargs: keyword arguments with which the callable
+            was called
+        :param
+        """
+        sup = super(Decorated, self)
+        sup.__setattr__('args', get_fn_args(wrapped, args))
+        sup.__setattr__('kwargs', kwargs)
+        sup.__setattr__('wrapped', self._sets_results(wrapped))
+        sup.__setattr__('result', result)
+
+    def __str__(self):
+        if hasattr(self.wrapped, '__name__'):
+            name = self.wrapped.__name__
+        else:
+            name = str(self.wrapped)
+        return '<Decorated {}({}, {})>'.format(name, self.args, self.kwargs)
+
+    def __call__(self, *args, **kwargs):
+        """Call the function the specified arguments.
+
+        Also set ``self.result``
+        """
+        return self.wrapped(*args, **kwargs)
+
+    def __setattr__(self, key, value):
+        """Disallow attribute setting"""
+        raise AttributeError(
+            'Cannot set "{}" because {} is immutable'.format(key, self)
+        )
+
+    def _sets_results(self, wrapped):
+        """Ensure that calling ``wrapped()`` sets the result attr
+
+        :param callable wrapped: the wrapped function, class, or method
+        """
+        @wraps(wrapped)
+        def wrapped_wrapped(*args, **kwargs):
+            """Set self.result after calling wrapped"""
+            res = wrapped(*args, **kwargs)
+            super(Decorated, self).__setattr__('result', res)
+            return res
+
+        return wrapped_wrapped

@@ -26,7 +26,57 @@ PyDecor aims to make function decoration easy and straightforward, so that
 developers can stop worrying about closures and syntax in triply nested
 functions and instead get down to decorating!
 
+
+IMPORTANT: Upcoming Backwards Incompatible Changes
+--------------------------------------------------
+
+Version 2.0.0 will make some changes to the call signatures for functions
+passed to ``@before``, ``@after``, ``@instead``, ``@decorate``, and
+``construct_decorator``, as well as to the call signatures to the
+decorators themselves.
+
+Specifically, rather than defaulting the call signature to some subset
+of decorated function args, kwargs, result, and the decorated function
+itself and allowing overrides with keyword arguments
+to the decorator like ``pass_params``, all functions passed to ``@before``,
+``@after``, and ``@instead`` will receive an immutable ``Decorated``
+object, which will have ``args``, ``kwargs``, ``wrapped``, and ``result``
+attributes, and which will support direct calls as though it were the
+decorated function/method/class. The aim of this is to make writing functions
+to pass to the decorators more intuitive, but it will require some minor
+re-writing of passed functions.
+
+You can experiment with this syntax and prepare for the cut-over right away
+by passing ``_use_future_syntax=True`` to any of your generic decorators
+(``@after``, ``@before``, etc.) or to ``construct_decorator``. See the below
+snippet to illustrate basic use of the new ``Decorated`` object:
+
+.. python::
+
+    from pydecor import after, Decorated
+
+    def after_func(decorated: Decorated, extra_kwarg=None):
+        """A function to be called after the decorated function"""
+        assert decorated.args == ('foo', )
+        assert decorated.kwargs == {'bar': 'bar'}
+        assert decorated.result == 'baz'
+        assert extra_kwarg == 'extra_kwarg'
+
+
+    @after(after_func, extra_kwarg='extra_kwarg')
+    def some_function('foo', bar='bar'):
+      """A function that returns 'baz'"""
+      return 'baz'
+
+All of the builtin non-generic decorators (``@memoize``, ``@intercept``,
+and ``@log_call``) are already using the future syntax, so feel free
+to look at those for more examples.
+
+See the API docs for more information.
+
+
 .. contents:: Table of Contents
+
 
 Why PyDecor?
 ------------
@@ -713,7 +763,7 @@ release:
 * ``export`` - add the decorated item to ``__all__``
 * ``skipif`` - similar to py.test's decorator, skip the function if a
   provided condition is True
-* ``memoize`` - store function results in a local dictionary cache
+* ``memoize`` - store function results in a local cache
 
 Let me know if you've got any idea for other decorators that would
 be nice to have!
@@ -739,6 +789,20 @@ new version is a pain. This is marked as scheduled for a patch release,
 because it does not affect users at all, so a minor version bump would
 lead people on to thinking that some new functionality had been added, when
 it hadn't.
+
+
+2.0.0
+*****
+
+* Use of immutable ``Decorated`` object to pass information about the
+  deprecated function
+* Deprecation of ``pass_params``, ``pass_kwargs``, ``pass_decorated``,
+  ``pass_result``, ``unapck_extras``, and ``extras_key`` keyword
+  arguments to all decorators.
+* Some minor updates to the package structure, with no backwards-incompatible
+  changes to the public interface. Specifically, decorators will be split
+  out into a sub-package, and decorator tests will be similarly split.
+* Better organization of documentation
 
 
 Contributing

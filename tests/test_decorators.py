@@ -15,6 +15,7 @@ from sys import version_info
 
 import pytest
 
+from pydecor.caches import FIFOCache, LRUCache, TimedCache
 from pydecor.constants import LOG_CALL_FMT_STR
 from pydecor.decorators import (
     after,
@@ -477,7 +478,7 @@ def test_direct_method_decoration(decorator):
 
     for mock in inst_tracker, cls_tracker, static_tracker:
 
-        mock.assert_called_once()
+        assert len(mock.mock_calls) == 1
 
         called_with = mock.call_args[0]
 
@@ -920,22 +921,144 @@ def test_log_call():
     exp_logger.debug.assert_called_once_with(exp_msg)
 
 
-@pytest.mark.parametrize('args, kwargs', (
-    (('a', 'b'), {'c': 'd'}),
-))
-def test_memoize_basic(args, kwargs):
-    """Test basic use of the memoize decorator"""
-    tracker = Mock(return_value='foo')
+class TestMemoization:
+    """Tests for memoization"""
 
-    @memoize()
-    def func(*args, **kwargs):
-        return tracker(args, kwargs)
+    # (args, kwargs)
+    memoizable_calls = (
+        (('a', 'b'), {'c': 'd'}),
+        ((['a', 'b', 'c'],), {'c': 'd'}),
+        ((lambda x: 'foo',), {'c': lambda y: 'bar'}),
+        (({'a': 'a'},), {'c': 'd'}),
+        ((type('A', (object,), {})(),), {}),
+        ((), {}),
+        ((1, 2, 3), {}),
+    )
 
-    func(*args, **kwargs)
-    tracker.assert_called_once_with(args, kwargs)
+    @pytest.mark.parametrize('args, kwargs', memoizable_calls)
+    def test_memoize_basic(self, args, kwargs):
+        """Test basic use of the memoize decorator"""
+        tracker = Mock(return_value='foo')
 
-    func(*args, **kwargs)
-    assert len(tracker.mock_calls) == 1
+        @memoize()
+        def func(*args, **kwargs):
+            return tracker(args, kwargs)
 
-    func(*args, **kwargs)
-    assert len(tracker.mock_calls) == 1
+        assert func(*args, **kwargs) == 'foo'
+        tracker.assert_called_once_with(args, kwargs)
+
+        assert func(*args, **kwargs) == 'foo'
+        assert len(tracker.mock_calls) == 1
+
+    def test_memoize_lru(self):
+        """Test removal of least-recently-used items"""
+        call_list = tuple(range(5))  # 0-4
+        tracker = Mock()
+
+        @memoize(max_size=5, cache_class=LRUCache)
+        def func(val):
+            tracker(val)
+            return val
+
+        for val in call_list:
+            func(val)
+
+        # LRU: 0 1 2 3 4
+        assert len(tracker.mock_calls) == len(call_list)
+        for val in call_list:
+            assert call(val) in tracker.mock_calls
+
+        # call with all the same args
+        for val in call_list:
+            func(val)
+
+        # no new calls, lru order should be same
+        # LRU: 0 1 2 3 4
+        assert len(tracker.mock_calls) == len(call_list)
+        for val in call_list:
+            assert call(val) in tracker.mock_calls
+
+        # add new value, popping least-recently-used (0)
+        # LRU: 1 2 3 4 5
+        func(5)
+        assert len(tracker.mock_calls) == len(call_list) + 1
+        assert tracker.mock_calls[-1] == call(5)  # most recent call
+
+        # Re-call with 0, asserting that we call the func again,
+        # and dropping 1
+        # LRU: 2 3 4 5 0
+        func(0)
+        assert len(tracker.mock_calls) == len(call_list) + 2
+        assert tracker.mock_calls[-1] == call(0)  # most recent call
+
+        # Let's ensure that using something rearranges it
+        func(2)
+        # LRU: 3 4 5 0 2
+        # no new calls
+        assert len(tracker.mock_calls) == len(call_list) + 2
+        assert tracker.mock_calls[-1] == call(0)  # most recent call
+
+        # Let's put another new value into the cache
+        func(6)
+        # LRU: 4 5 0 2 6
+        assert len(tracker.mock_calls) == len(call_list) + 3
+        assert tracker.mock_calls[-1] == call(6)
+
+        # Assert that 2 hasn't been dropped from the list, like it
+        # would have been if we hadn't called it before 6
+        func(2)
+        # LRU: 4 5 0 6 2
+        assert len(tracker.mock_calls) == len(call_list) + 3
+        assert tracker.mock_calls[-1] == call(6)
+
+    def test_memoize_fifo(self):
+        """Test using the FIFO cache"""
+        call_list = tuple(range(5))  # 0-4
+        tracker = Mock()
+
+        @memoize(max_size=5, cache_class=FIFOCache)
+        def func(val):
+            tracker(val)
+            return val
+
+        for val in call_list:
+            func(val)
+
+        # Cache: 0 1 2 3 4
+        assert len(tracker.mock_calls) == len(call_list)
+        for val in call_list:
+            assert call(val) in tracker.mock_calls
+
+        # call with all the same args
+        for val in call_list:
+            func(val)
+
+        # no new calls, cache still the same
+        # Cache: 0 1 2 3 4
+        assert len(tracker.mock_calls) == len(call_list)
+        for val in call_list:
+            assert call(val) in tracker.mock_calls
+
+        # add new value, popping first in (0)
+        # Cache: 1 2 3 4 5
+        func(5)
+        assert len(tracker.mock_calls) == len(call_list) + 1
+        assert tracker.mock_calls[-1] == call(5)  # most recent call
+
+        # Assert 5 doesn't yield a new call
+        func(5)
+        assert len(tracker.mock_calls) == len(call_list) + 1
+        assert tracker.mock_calls[-1] == call(5)  # most recent call
+
+        # Re-call with 0, asserting that we call the func again,
+        # and dropping 1
+        # Cache: 2 3 4 5 0
+        func(0)
+        assert len(tracker.mock_calls) == len(call_list) + 2
+        assert tracker.mock_calls[-1] == call(0)  # most recent call
+
+        # Assert neither 0 nor 5 yield new calls
+        func(0)
+        func(5)
+        assert len(tracker.mock_calls) == len(call_list) + 2
+        assert tracker.mock_calls[-1] == call(0)  # most recent call

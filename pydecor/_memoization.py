@@ -2,10 +2,15 @@
 Required functionality for the memoization function
 """
 
-try:
-    import cPickle as pickle  # Python 2.7
-except ImportError:
-    import pickle  # Python 3 automatically uses cpickle if available
+import dill as pickle
+
+# try:
+#     import dill as pickle
+# except ImportError:
+#     try:
+#         import cPickle as pickle  # Python 2.7
+#     except ImportError:
+#         import pickle  # Python 3 automatically uses cpickle if available
 
 
 def convert_to_hashable(args, kwargs):
