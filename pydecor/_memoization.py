@@ -1,16 +1,14 @@
+# -*- coding: UTF-8 -*-
 """
 Required functionality for the memoization function
 """
 
-import dill as pickle
+__all__ = (
+    'convert_to_hashable',
+    'hashable',
+)
 
-# try:
-#     import dill as pickle
-# except ImportError:
-#     try:
-#         import cPickle as pickle  # Python 2.7
-#     except ImportError:
-#         import pickle  # Python 3 automatically uses cpickle if available
+import dill as pickle
 
 
 def convert_to_hashable(args, kwargs):

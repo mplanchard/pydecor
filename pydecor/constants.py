@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 This rather skinny module just contains constants for use elsewhere.
 """

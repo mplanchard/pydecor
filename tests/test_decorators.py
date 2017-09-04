@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 Tests for the decorators module
 """
@@ -12,6 +13,7 @@ except ImportError:
 from logging import getLogger
 from inspect import isfunction
 from sys import version_info
+from time import sleep
 
 import pytest
 
@@ -930,7 +932,7 @@ class TestMemoization:
         ((['a', 'b', 'c'],), {'c': 'd'}),
         ((lambda x: 'foo',), {'c': lambda y: 'bar'}),
         (({'a': 'a'},), {'c': 'd'}),
-        ((type('A', (object,), {})(),), {}),
+        ((type(str('A'), (object,), {})(),), {}),
         ((), {}),
         ((1, 2, 3), {}),
     )
@@ -955,7 +957,7 @@ class TestMemoization:
         call_list = tuple(range(5))  # 0-4
         tracker = Mock()
 
-        @memoize(max_size=5, cache_class=LRUCache)
+        @memoize(keep=5, cache_class=LRUCache)
         def func(val):
             tracker(val)
             return val
@@ -1016,7 +1018,7 @@ class TestMemoization:
         call_list = tuple(range(5))  # 0-4
         tracker = Mock()
 
-        @memoize(max_size=5, cache_class=FIFOCache)
+        @memoize(keep=5, cache_class=FIFOCache)
         def func(val):
             tracker(val)
             return val
@@ -1062,3 +1064,21 @@ class TestMemoization:
         func(5)
         assert len(tracker.mock_calls) == len(call_list) + 2
         assert tracker.mock_calls[-1] == call(0)  # most recent call
+
+    def test_memoization_timed(self):
+        """Test timed memoization"""
+        time = 0.001
+        tracker = Mock()
+
+        @memoize(keep=time, cache_class=TimedCache)
+        def func(val):
+            tracker(val)
+            return val
+
+        assert func(1) == 1
+        assert tracker.mock_calls == [call(1)]
+        assert func(1) == 1
+        assert tracker.mock_calls == [call(1)]
+        sleep(time)
+        assert func(1) == 1
+        assert tracker.mock_calls == [call(1), call(1)]

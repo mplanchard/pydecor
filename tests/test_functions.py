@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 Tests for the functions module
 """
@@ -14,7 +15,7 @@ from logging import getLogger
 import pytest
 
 
-from pydecor._util import Decorated
+from pydecor.decorators import Decorated
 from pydecor.constants import LOG_CALL_FMT_STR
 from pydecor.functions import (
     intercept,

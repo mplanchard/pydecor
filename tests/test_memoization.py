@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 Tests for memoization functions
 """

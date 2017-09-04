@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 Functions to use for decorator construction
 """
@@ -96,7 +97,7 @@ def log_call(decorated, logger=None, level='info',
 
 
 def memoize(decorated, memo):
-    """Return a memoized result if possible, store if not present
+    """Return a memoized result if possible; store if not present
 
     :param Decorator decorated: decorated function information
     :param memo: the memoization cache. Must support standard
