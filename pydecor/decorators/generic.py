@@ -52,7 +52,7 @@ class Decorated(object):
     instances of this class when they are passed to the functions
     specified on generic decorators.
 
-    .. python::
+    .. code:: python
 
         from pydecor import Decorated
 

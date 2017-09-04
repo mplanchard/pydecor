@@ -1067,7 +1067,7 @@ class TestMemoization:
 
     def test_memoization_timed(self):
         """Test timed memoization"""
-        time = 0.001
+        time = 0.005
         tracker = Mock()
 
         @memoize(keep=time, cache_class=TimedCache)

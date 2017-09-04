@@ -65,14 +65,14 @@ templates_path = ['_templates']
 source_suffix = '.rst'
 
 # The encoding of source files.
-#source_encoding = 'utf-8-sig'
+source_encoding = 'utf-8-sig'
 
 # The master toctree document.
 master_doc = 'index'
 
 # General information about the project.
 project = NAME
-copyright = '2017, Ihiji'
+copyright = '2017, {}'.format(AUTHOR)
 author = AUTHOR
 
 # The version info for the project you're documenting, acts as replacement for

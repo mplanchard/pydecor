@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 setup module for ihiji_schemas
 """
@@ -17,7 +18,7 @@ EMAIL = 'msplanchard@gmail.com'
 
 SHORT_DESC = 'Easy peasy Python decorators'
 
-with open(join(fdir, 'README.rst')) as readmefile:
+with open(join(fdir, 'README.rst'), encoding='utf-8') as readmefile:
     LONG_DESC = readmefile.read()
 
 

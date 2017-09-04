@@ -51,7 +51,7 @@ by passing ``_use_future_syntax=True`` to any of your generic decorators
 (``@after``, ``@before``, etc.) or to ``construct_decorator``. See the below
 snippet to illustrate basic use of the new ``Decorated`` object:
 
-.. python::
+.. code:: python
 
     from pydecor import after, Decorated
 

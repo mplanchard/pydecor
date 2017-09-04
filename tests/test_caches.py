@@ -195,7 +195,7 @@ class TestTimedCache:
 
     def test_timed_reset(self):
         """Test that resetting entries resets their time"""
-        time = 0.001
+        time = 0.005
         cache = TimedCache(max_age=time)
 
         cache[1] = 1
