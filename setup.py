@@ -5,7 +5,10 @@ setup module for ihiji_schemas
 
 from os.path import dirname, join, realpath
 from setuptools import setup, find_packages
-from textwrap import dedent
+from sys import version_info
+
+if version_info < (3, 0):
+    from codecs import open
 
 
 fdir = dirname(realpath(__file__))
@@ -19,21 +22,8 @@ EMAIL = 'msplanchard@gmail.com'
 
 SHORT_DESC = 'Easy peasy Python decorators'
 
-LONG_DESC = dedent(
-    '''
-    Decorators are great, but they're hard to write, especially if you want
-    to include arguments to your decorators, or use your decorators on
-    class methods as well as functions. I know that, no matter how many I 
-    write, I still find myself looking up the syntax every time. And that's 
-    just for simple function decorators. Getting decorators to work 
-    consistently at the class and method level is a whole 'nother barrel 
-    of worms.
-
-    PyDecor aims to make function decoration easy and straightforward, so that
-    developers can stop worrying about closures and syntax in triply nested
-    functions and instead get down to decorating!
-    '''
-)
+with open(join(fdir, 'README.rst'), encoding='utf-8') as readmefile:
+    LONG_DESC = readmefile.read()
 
 
 KEYWORDS = [
