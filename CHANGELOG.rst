@@ -36,3 +36,17 @@ Memoization, prep for v 2.0
 -----
 
 * fixed setup to pull README once more, even in Python 2
+
+1.1.2
+-----
+
+* fixed an issue with the README
+
+1.1.3
+-----
+
+Apparently `pythonhosted.org` has been deprecated, so I set up a
+Read the Docs account and moved the documentation there.
+
+* Uploaded README to point to new docs
+* Added docs build image for funsies.

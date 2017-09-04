@@ -4,11 +4,14 @@ PyDecor
 .. image:: https://travis-ci.org/mplanchard/pydecor.svg?branch=master
    :target: https://travis-ci.org/mplanchard/pydecor
 
+.. image:: https://readthedocs.org/projects/pydecor/badge/?version=latest
+    :target: https://pydecor.readthedocs.io/
+
 Easy-peasy Python decorators!
 
 * GitHub: https://github.com/mplanchard/pydecor
 * PyPI: https://pypi.python.org/pypi/pydecor
-* Docs: https://pythonhosted.org/pydecor/
+* Docs: https://pydecor.readthedocs.io/
 * Contact: ``msplanchard`` ``@`` ``gmail`` or @msplanchard on Twitter
 
 
@@ -1028,9 +1031,9 @@ Credits and Links
 .. _`pep 484`: https://www.python.org/dev/peps/pep-0484/
 .. _six: https://pythonhosted.org/six/
 .. _`typing backport`: https://pypi.org/project/typing/
-.. _docs: https://pythonhosted.org/pydecor/#
+.. _docs: https://pydecor.readthedocs.io/en/latest/
 .. _`decorator module docs`:
-    https://pythonhosted.org/pydecor/pydecor.decorators.html
+    https://pydecor.readthedocs.io/en/latest/pydecor.decorators.html
 .. _issues: https://github.com/mplanchard/pydecor/issues
 .. _PRs: https://github.com/mplanchard/pydecor/pulls
 .. _dill: https://pypi.python.org/pypi/dill
