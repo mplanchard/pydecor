@@ -459,7 +459,7 @@ And the output?
 Maybe a more realistic example would be useful. Let's say we want to add
 headers to a Flask response.
 
-.. python::
+.. code:: python
 
 
     from flask import Flask, Response, make_response
