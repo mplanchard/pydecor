@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 Tests for the functions module
 """
@@ -14,6 +15,7 @@ from logging import getLogger
 import pytest
 
 
+from pydecor.decorators import Decorated
 from pydecor.constants import LOG_CALL_FMT_STR
 from pydecor.functions import (
     intercept,
@@ -34,12 +36,15 @@ from pydecor.functions import (
 def test_interceptor(raises, catch, reraise, include_handler):
     """Test the intercept function"""
     wrapped = Mock()
+    wrapped.__name__ = 'intercept_mock'
     if raises is not None:
         wrapped.side_effect = raises
 
     handler = Mock() if include_handler else None
 
-    fn = partial(intercept, (), {}, wrapped, catch=catch, reraise=reraise,
+    decorated = Decorated(wrapped, (), {})
+
+    fn = partial(intercept, decorated, catch=catch, reraise=reraise,
                  handler=handler)
 
     will_catch = raises and issubclass(raises, catch)
@@ -73,9 +78,10 @@ def test_log_call():
 
     call_args = ('a', )
     call_kwargs = {'b': 'c'}
-    call_res = func(*call_args, **call_kwargs)
+    decorated = Decorated(func, call_args, call_kwargs)
+    call_res = decorated(*decorated.args, **decorated.kwargs)
 
-    log_call(call_res, call_args, call_kwargs, func, level='debug')
+    log_call(decorated, level='debug')
 
     exp_msg = LOG_CALL_FMT_STR.format(
         name='func',

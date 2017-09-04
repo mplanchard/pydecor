@@ -1,7 +1,7 @@
-pydecor\.\_util module
+pydecor\.caches module
 ======================
 
-.. automodule:: pydecor._util
+.. automodule:: pydecor.caches
     :members:
     :private-members:
     :undoc-members:

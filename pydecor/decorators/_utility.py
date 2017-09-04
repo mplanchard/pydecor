@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """
 Private interface utilities for PyDecor
 """
@@ -8,11 +9,10 @@ from __future__ import absolute_import, unicode_literals
 __all__ = ('ClassWrapper', )
 
 
-from functools import partial
+from functools import partial, wraps
 from inspect import isclass
 from logging import getLogger
 from sys import version_info
-from types import MethodType
 
 from inspect import isfunction, ismethod
 

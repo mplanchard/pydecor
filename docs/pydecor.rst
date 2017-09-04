@@ -1,15 +1,22 @@
 pydecor package
 ===============
 
+Subpackages
+-----------
+
+.. toctree::
+
+    pydecor.decorators
+
 Submodules
 ----------
 
 .. toctree::
 
-   pydecor._util
+   pydecor._memoization
    pydecor._version
+   pydecor.caches
    pydecor.constants
-   pydecor.decorators
    pydecor.functions
 
 Module contents

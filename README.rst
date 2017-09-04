@@ -22,11 +22,178 @@ I still find myself looking up the syntax every time. And that's just for
 simple function decorators. Getting decorators to work consistently at the
 class and method level is a whole 'nother barrel of worms.
 
-PyDecor aims to make function easy and straightforward, so that developers
-can stop worrying about closures and syntax in triply nested functions and
-instead get down to decorating!
+PyDecor aims to make function decoration easy and straightforward, so that
+developers can stop worrying about closures and syntax in triply nested
+functions and instead get down to decorating!
+
+
+IMPORTANT: Upcoming Backwards Incompatible Changes
+--------------------------------------------------
+
+Version 2.0.0 will make some changes to the call signatures for functions
+passed to ``@before``, ``@after``, ``@instead``, ``@decorate``, and
+``construct_decorator``, as well as to the call signatures to the
+decorators themselves.
+
+Specifically, rather than defaulting the call signature to some subset
+of decorated function args, kwargs, result, and the decorated function
+itself and allowing overrides with keyword arguments
+to the decorator like ``pass_params``, all functions passed to ``@before``,
+``@after``, and ``@instead`` will receive an immutable ``Decorated``
+object, which will have ``args``, ``kwargs``, ``wrapped``, and ``result``
+attributes, and which will support direct calls as though it were the
+decorated function/method/class. The aim of this is to make writing functions
+to pass to the decorators more intuitive, but it will require some minor
+re-writing of passed functions.
+
+You can experiment with this syntax and prepare for the cut-over right away
+by passing ``_use_future_syntax=True`` to any of your generic decorators
+(``@after``, ``@before``, etc.) or to ``construct_decorator``. See the below
+snippet to illustrate basic use of the new ``Decorated`` object:
+
+.. code:: python
+
+    from pydecor import after, Decorated
+
+    def after_func(decorated: Decorated, extra_kwarg=None):
+        """A function to be called after the decorated function"""
+        assert decorated.args == ('foo', )
+        assert decorated.kwargs == {'bar': 'bar'}
+        assert decorated.result == 'baz'
+        assert extra_kwarg == 'extra_kwarg'
+
+
+    @after(after_func, extra_kwarg='extra_kwarg')
+    def some_function('foo', bar='bar'):
+      """A function that returns 'baz'"""
+      return 'baz'
+
+All of the builtin non-generic decorators (``@memoize``, ``@intercept``,
+and ``@log_call``) are already using the future syntax, so feel free
+to look at those for more examples.
+
+See the API docs for more information.
+
 
 .. contents:: Table of Contents
+
+
+Quickstart
+----------
+
+Install ``pydecor``::
+
+  pip install pydecor
+
+Use one of the ready-to-wear decorators:
+
+.. code:: python
+
+    # Memoize a function
+
+    from pydecor import memoize
+
+
+    @memoize()
+    def fibonacci(n):
+        """Compute the given number of the fibonacci sequence"""
+        if n < 2:
+            return n
+        return fibonacci(n - 2) + fibonacci(n - 1)
+
+    print(fibonacci(150))
+
+
+.. code:: python
+
+    # Intercept an error and raise a different one
+
+    from flask import Flask
+    from pydecor import intercept
+    from werkzeug.exceptions import InternalServerError
+
+
+    app = Flask(__name__)
+
+
+    @app.route('/')
+    @intercept(catch=Exception, reraise=InternalServerError,
+               err_msg='The server encountered an error rendering "some_view"')
+    def some_view():
+        """The root view"""
+        assert False
+        return 'Asserted False successfully!'
+
+
+    client = app.test_client()
+    response = client.get('/')
+
+    assert response.status_code == 500
+    assert 'some_view'.encode() in resp.data
+
+
+Use a generic decorator to run your own functions ``@before``, ``@after``,
+or ``@instead`` of another function, like in the following example,
+which sets a User-Agent header on a Flask response:
+
+.. code:: python
+
+    from flask import Flask, make_response
+    from pydecor import after
+
+
+    app = Flask(__name__)
+
+
+    def set_user_agent(view_result):
+        """Sets the user-agent header on a result from a view"""
+        resp = make_response(view_result)
+        resp.headers.set('User-Agent', 'my_applicatoin')
+        return resp
+
+
+    @app.route('/')
+    @after(set_user_agent)
+    def index_view():
+        return 'Hello, world!'
+
+
+    client = app.test_client()
+    response = client.get('/')
+    assert response.headers.get('User-Agent') == 'my_application'
+
+
+Or make your own decorator with ``construct_decorator``
+
+.. code:: python
+
+    from flask import request
+    from pydecor import construct_decorator
+    from werkzeug.exceptions import Unauthorized
+
+
+    def check_auth(request):
+        """Theoretically checks auth
+
+        It goes without saying, but this is example code. You should
+        not actually check auth this way!
+        """
+        if request.host != 'localhost':
+            raise Unauthorized('locals only!')
+
+
+    authed = construct_decorator(before=check_auth)
+
+
+    app = Flask(__name__)
+
+
+    @app.route('/')
+    @authed(request=request)
+    def some_view():
+        """An authenticated view"""
+        return 'This is sensitive data!'
+
 
 Why PyDecor?
 ------------
@@ -85,9 +252,9 @@ Why PyDecor?
 
 * **It's fast!**
 
-  The test suite for this library (328 tests as of this writing) runs in
-  about 0.88 seconds, on average. That's hundreds of decorations, plus py.test
-  spinup time, plus a bunch of complicated mocking.
+  PyDecor aims to make your life easier, not slower. The decoration machinery
+  is designed to be as efficient as is reasonable, and contributions to
+  speed things up are always welcome.
 
 * **Implicit Method Decoration!**
 
@@ -129,10 +296,10 @@ Why PyDecor?
         ...
 
   PyDecor ignores special methods (like ``__init__``) so as not to interfere
-  with deep Python magic. By default, it works on any methods of an instance,
-  including class and static methods! It also ensures that class attributes
-  are preserved after decoration, so your class references continue to behave
-  as expected.
+  with deep Python magic. By default, it works on any methods of a class,
+  including instance, class and static methods. It also ensures that class
+  attributes are preserved after decoration, so your class references
+  continue to behave as expected.
 
 * **Consistent Method Decoration!**
 
@@ -168,15 +335,15 @@ code, which may or may not be functional::
 
 
 
-Quickstart
-----------
+Details
+-------
 
 Provided Decorators
 *******************
 
 This package provides generic decorators, which can be used with any
 function to provide extra utility to decorated resources, as well
-as convenience decorators implemented using those generic decorators.
+as prête-à-porter (ready-to-wear) decorators for immediate use.
 
 While the information below is enough to get you started, I highly
 recommend checking out the `decorator module docs`_ to see all the
@@ -185,27 +352,35 @@ options and details for the various decorators!
 Generics
 ~~~~~~~~
 
-* ``before`` - run a callable before the decorated function executes
+* ``@before`` - run a callable before the decorated function executes
 
   * by default called with no arguments other than extras
 
-* ``after`` - run a callable after the decorated function executes
+* ``@after`` - run a callable after the decorated function executes
 
   * by default called with the result of the decorated function and any
     extras
 
-* ``instead`` - run a callable in place of the decorated function
+* ``@instead`` - run a callable in place of the decorated function
 
   * by default called with the args and kwargs to the decorated function,
     along with a reference to the function itself
 
-* ``decorate`` - specify multiple callables to be run before, after, and/or
+* ``@decorate`` - specify multiple callables to be run before, after, and/or
   instead of the decorated function
 
   * callables passed to ``decorate``'s ``before``, ``after``, or ``instead``
     keyword arguments will be called with the same default function signature
     as described for the individual decorators, above. Extras will be
     passed to all provided callables
+
+* ``construct_decorator`` - specify functions to be run ``before``, ``after``,
+  or ``instead``. Returns a reusable generator.
+
+  * in addition to ``before``, ``after``, and ``instead``, which receive
+    callables, ``before_opts``, ``after_opts``, and ``instead_opts`` dicts
+    may be passed to ``construct_decorator``, and they will apply in the same
+    way as their respective decorator parameters
 
 Every generic decorator takes any number of keyword arguments, which will be
 passed directly into the provided callable, unless ``unpack_extras`` is False
@@ -241,16 +416,138 @@ Every generic decorator takes the following keyword arguments:
   is passed into the provided callable.
 * ``extras_key`` - the keyword to use when passing extras into the provided
   callable if ``unpack_extras`` is False
+* ``_use_future_syntax`` - See the note at the top on backwards incompatible
+  changes in version 2.0.0.
 
-Convenience
-~~~~~~~~~~~
+The ``construct_decorator`` function can be used to combine ``@before``,
+``@after``, and ``@instead`` calls into one decorator, without having to
+worry about unintended stacking effects. Let's make a
+decorator that announces when we're starting an exiting a function:
+
+.. code:: python
+
+    from pydecor import construct_decorator
+
+    def before_func(decorated_func):
+        print('Starting decorated function '
+              '"{}"'.format(decorated_func.__name__))
+
+    def after_func(decorated_result, decorated_func):
+        print('"{}" gave result "{}"'.format(
+            decorated_func.__name__, decorated_result
+        ))
+
+    my_decorator = construct_decorator(
+        before=before_func,
+        after=after_func,
+        before_opts={'pass_decorated': True},
+        after_opts={'pass_decorated': True},
+    )
+
+    @my_decorator()
+    def this_function_returns_nothing():
+        return 'nothing'
+
+And the output?
+
+.. code::
+
+    Starting decorated function "this_function_returns_nothing"
+    "this_function_returns_nothing" gave result "nothing"
+
+
+Maybe a more realistic example would be useful. Let's say we want to add
+headers to a Flask response.
+
+.. python::
+
+
+    from flask import Flask, Response, make_response
+    from pydecor import construct_decorator
+
+
+    def _set_app_json_header(response):
+        # Ensure the response is a Response object, even if a tuple was
+        # returned by the view function.
+        response = make_response(response)
+        response.headers.set('Content-Type', 'application/json')
+        return response
+
+
+    application_json = construct_decorator(after=_set_app_json_header)
+
+
+    # Now you can decorate any Flask view, and your headers will be set.
+
+    app = Flask(__name__)
+
+    # Note that you must decorate "before" (closer to) the function than the
+    # app.route() decoration, because the route decorator must be called on
+    # the "finalized" version of your function
+
+    @app.route('/')
+    @application_json()
+    def root_view():
+        return 'Hello, world!'
+
+    client = app.test_client()
+    response = app.get('/')
+
+    print(response.headers)
+
+
+The output?
+
+..code::
+
+    Content-Type: application/json
+    Content-Length: 13
+
+
+Prête-à-porter (ready-to-wear)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ``intercept`` - catch the specified exception and optionally re-raise and/or
   call a provided callback to handle the exception
 * ``log_call`` - automatically log the decorated function's call signature and
   results
+* ``memoize`` - memoize a function's call and return values for re-use. Can
+  use any cache in ``pydecor.caches``, which all have options for automatic
+  pruning to keep the memoization cache from growing too large.
 
 **More to come!!** See Roadmap_ for more details on upcoming features
+
+
+Caches
+******
+
+Three caches are provided with ``pydecor``. These are designed to be passed
+to the ``@memoization`` decorator if you want to use something other than
+the default ``LRUCache``, but they are perfectly functional for use elesewhere.
+
+All caches implement the standard dictionary interface.
+
+
+LRUCache
+~~~~~~~~
+
+A least-recently-used cache. Both getting and setting of key/value pairs
+results in their having been considered most-recently-used. When the cache
+reaches the specified ``max_size``, least-recently-used items are discarded.
+
+FIFOCache
+~~~~~~~~~
+
+A first-in, first-out cache. When the cache reaches the specified ``max_size``,
+the first item that was inserted is discarded, then the second, and so on.
+
+TimedCache
+~~~~~~~~~~
+
+A cache whose entries expire. If a ``max_age`` is specified, any entries older
+than the ``max_age`` (in seconds) will be considered invalid, and will be
+removed upon access.
+
 
 Stacking
 ********
@@ -616,22 +913,19 @@ the entire function, so it does not provide that fine-grained level of control.
 Roadmap
 -------
 
-1.1.0
+1.2.0
 *****
 
-More Convenience Decorators
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The following convenience decorators will be included in the ``1.1.0``
-release:
+More Prête-à-porter Decorators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * ``export`` - add the decorated item to ``__all__``
 * ``skipif`` - similar to py.test's decorator, skip the function if a
   provided condition is True
-* ``memoize`` - store function results in a local dictionary cache
 
 Let me know if you've got any idea for other decorators that would
 be nice to have!
+
 
 Typing Stubfiles
 ~~~~~~~~~~~~~~~~
@@ -645,15 +939,25 @@ with Python 2.7), stubfiles will be added for the ``1.1.0`` release,
 and docstring hints will be removed so that contributors don't have
 to adjust type specifications in two places.
 
-
-1.1.x
-*****
+Build-process Updates
+~~~~~~~~~~~~~~~~~~~~~
 
 A more automated build process, because remembering all the steps to push a
 new version is a pain. This is marked as scheduled for a patch release,
 because it does not affect users at all, so a minor version bump would
 lead people on to thinking that some new functionality had been added, when
 it hadn't.
+
+
+2.0.0
+*****
+
+* Use of immutable ``Decorated`` object to pass information about the
+  deprecated function
+* Deprecation of ``pass_params``, ``pass_kwargs``, ``pass_decorated``,
+  ``pass_result``, ``unapck_extras``, and ``extras_key`` keyword
+  arguments to all decorators.
+* Better organization of documentation
 
 
 Contributing
@@ -712,6 +1016,7 @@ Credits and Links
 * The `typing backport`_ is used for Python2.7-3.4-compatible type definitions
 * Documentation built with sphinx_
 * Coverage information collected with coverage_
+* Pickling of objects provided via dill_
 
 .. _`project template`: https://github.com/mplanchard/python_skeleton
 .. _pytest:
@@ -728,3 +1033,4 @@ Credits and Links
     https://pythonhosted.org/pydecor/pydecor.decorators.html
 .. _issues: https://github.com/mplanchard/pydecor/issues
 .. _PRs: https://github.com/mplanchard/pydecor/pulls
+.. _dill: https://pypi.python.org/pypi/dill

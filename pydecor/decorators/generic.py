@@ -1,5 +1,13 @@
+# -*- coding: UTF-8 -*-
 """
-A module housing the decorators provided in the public API of PyDecor
+Generic decorators help you to easily create your own decorators with simple
+``@before``, ``@after``, and ``@instead`` decorators that call a function
+as specified in the execution order of the decorated callable.
+
+Additionally the ``@decorate`` decorator allows you to combine the above three
+generics in one call, and the ``construct_decorator`` function returns a
+ready-to-use decorator implementing any or all of the above three generics,
+which you can then assign to a variable name and use as desired.
 """
 
 from __future__ import absolute_import, unicode_literals
@@ -8,10 +16,10 @@ from __future__ import absolute_import, unicode_literals
 __all__ = (
     'after',
     'before',
+    'construct_decorator',
     'decorate',
     'instead',
-    'intercept',
-    'log_call',
+    'Decorated',
     'DecoratorType',
 )
 
@@ -22,9 +30,8 @@ from functools import partial, wraps
 from types import FunctionType, MethodType
 from typing import Union
 
-from . import functions
-from ._util import ClassWrapper, get_fn_args
-from .constants import LOG_CALL_FMT_STR
+from ._utility import ClassWrapper, get_fn_args
+
 
 log = getLogger(__name__)
 
@@ -32,9 +39,122 @@ log = getLogger(__name__)
 DecoratorType = Union[FunctionType, MethodType, type]
 
 
+class Decorated(object):
+    """A representation of a decorated class
+
+    This user-immutable object provides information about the decorated
+    class, method, or function. The decorated callable can be called
+    by directly calling the ``Decorated`` instance, or via the
+    ``wrapped`` instance attribute.
+
+    The example below illustrates direct instantiation of the
+    ``Decorated`` class, but generally you will only deal with
+    instances of this class when they are passed to the functions
+    specified on generic decorators.
+
+    .. code:: python
+
+        from pydecor import Decorated
+
+        def some_function(*args, **kwargs):
+            return 'foo'
+
+        decorated = Decorated(some_function, ('a', 'b'), {'c': 'c'})
+
+        assert decorated.wrapped.__name__ == some_function.__name__
+        assert decorated.args == ('a', 'b')
+        assert decorated.kwargs == {'c': 'c'}
+        assert decorated.result is None  # has not yet been called
+
+        res = decorated(decorated.args, decorated.kwargs)
+
+        assert 'foo' == res == decorated.result
+
+    .. note::
+
+        identity tests ``decorated.wrapped is some_decorated_function``
+        will not work on the ``wrapped`` attribute of a ``Decorated``
+        instance, because internally the wrapped callable is wrapped
+        in a method that ensures that ``Decorated.result`` is set
+        whenever the callable is called. It is wrapped using
+        ``functools.wraps``, so attributes like ``__name__``,
+        ``__doc__``, ``__module__``, etc. should still be the
+        same as on an actual reference.
+
+        If you need to access a real reference to the wrapped
+        function for any reason, you can do so by accessing
+        the ``__wrapped__`` property, on ``wrapped``, which is
+        set by ``functools.wraps``, e.g.
+        ``decorated.wrapped.__wrapped__``.
+
+    :param wrapped: a reference to the wrapped callable. Calling the
+        wrapped callable via this reference will set the ``result``
+        attribute.
+    :param args: a tuple of arguments with which the decorated function
+        was called
+    :param kwargs: a dict of arguments with which the decorated function
+        was called
+    :param result: either ``None`` if the wrapped callable has not yet
+        been called or the result of that call
+    """
+
+    __slots__ = ('args', 'kwargs', 'wrapped', 'result')
+
+    def __init__(self, wrapped, args, kwargs, result=None):
+        """Instantiate a Decorated object
+
+        :param callable wrapped: the callable object being wrapped
+        :param tuple args: args with which the callable was called
+        :param dict kwargs: keyword arguments with which the callable
+            was called
+        :param
+        """
+        sup = super(Decorated, self)
+        sup.__setattr__('args', get_fn_args(wrapped, args))
+        sup.__setattr__('kwargs', kwargs)
+        sup.__setattr__('wrapped', self._sets_results(wrapped))
+        sup.__setattr__('result', result)
+
+    def __str__(self):
+        """Return a nice string of self"""
+        if hasattr(self.wrapped, '__name__'):
+            name = self.wrapped.__name__
+        else:
+            name = str(self.wrapped)
+        return '<Decorated {}({}, {})>'.format(name, self.args, self.kwargs)
+
+    def __call__(self, *args, **kwargs):
+        """Call the function the specified arguments.
+
+        Also set ``self.result``
+        """
+        return self.wrapped(*args, **kwargs)
+
+    def __setattr__(self, key, value):
+        """Disallow attribute setting"""
+        raise AttributeError(
+            'Cannot set "{}" because {} is immutable'.format(key, self)
+        )
+
+    def _sets_results(self, wrapped):
+        """Ensure that calling ``wrapped()`` sets the result attr
+
+        :param callable wrapped: the wrapped function, class, or method
+        """
+        @wraps(wrapped)
+        def wrapped_wrapped(*args, **kwargs):
+            """Set self.result after calling wrapped"""
+            res = wrapped(*args, **kwargs)
+            super(Decorated, self).__setattr__('result', res)
+            return res
+
+        return wrapped_wrapped
+
+
 def before(func, pass_params=False, pass_decorated=False,
            implicit_method_decoration=True, instance_methods_only=False,
-           unpack_extras=True, extras_key='extras', **extras):
+           unpack_extras=True, extras_key='extras',
+           _use_future_syntax=False, **extras):
     """Specify a callable to be run before the decorated resource
 
     A callable provided to this decorator will be called
@@ -112,9 +232,18 @@ def before(func, pass_params=False, pass_decorated=False,
         (default ``"extras"``) the key to which to assign extra
         decorator keyword arguments when ``unpack_extras`` is ``False``
 
+    :param bool _use_future_syntax:
+        (default False) if True, use the new ``Decorated`` object,
+        which will become the default in version 2.0.0. If this
+        parameter is True, all other parameters will be ignored
+        expect for ``instance_methods_only`` and
+        ``implicit_method_decoration``, a ``Decorated`` object
+        will be passed to the function as its first argument,
+        and any provided keyword arguments will be unpacked.
+
     :param **dict extras:
         any extra keyword arguments supplied to the decoration call
-    
+
     :return: the decorated function/method/class
     :rtype: Union[FunctionType,MethodType,type]
     """
@@ -125,23 +254,31 @@ def before(func, pass_params=False, pass_decorated=False,
         def wrapper(*args, **kwargs):
             """The function that replaces the decorated one"""
 
-            fkwargs = extras if unpack_extras else {extras_key: extras}
+            if unpack_extras or _use_future_syntax:
+                fkwargs = extras
+            else:
+                fkwargs = {extras_key: extras}
 
             fn = func
+            decor = decorated
 
-            if pass_params:
-                fn_args = get_fn_args(decorated, args)
-                fn = partial(fn, fn_args, kwargs)
+            if _use_future_syntax:
+                decor = Decorated(decorated, args, kwargs)
+                fn = partial(fn, decor)
+            else:
+                if pass_params:
+                    fn_args = get_fn_args(decorated, args)
+                    fn = partial(fn, fn_args, kwargs)
 
-            if pass_decorated:
-                fn = partial(fn, decorated)
+                if pass_decorated:
+                    fn = partial(fn, decorated)
 
             fret = fn(**fkwargs)
 
             if fret is not None:
                 args, kwargs = fret
 
-            ret = decorated(*args, **kwargs)
+            ret = decor(*args, **kwargs)
             return ret
 
         if implicit_method_decoration and isclass(decorated):
@@ -159,7 +296,8 @@ def before(func, pass_params=False, pass_decorated=False,
 
 def after(func, pass_params=False, pass_result=True, pass_decorated=False,
           implicit_method_decoration=True, instance_methods_only=False,
-          unpack_extras=True, extras_key='extras', **extras):
+          unpack_extras=True, extras_key='extras',
+          _use_future_syntax=False, **extras):
     """Specify a callable to be run after the decorated resource
 
     A callable provided to this decorator will be called
@@ -245,6 +383,15 @@ def after(func, pass_params=False, pass_result=True, pass_decorated=False,
         (default ``"extras"``) the key to which to assign extra
         decorator keyword arguments when ``unpack_extras`` is ``False``
 
+    :param bool _use_future_syntax:
+        (default False) if True, use the new ``Decorated`` object,
+        which will become the default in version 2.0.0. If this
+        parameter is True, all other parameters will be ignored
+        expect for ``instance_methods_only`` and
+        ``implicit_method_decoration``, a ``Decorated`` object
+        will be passed to the function as its first argument,
+        and any provided keyword arguments will be unpacked.
+
     :param **dict extras:
         any extra keyword arguments supplied to the decoration call
 
@@ -258,21 +405,32 @@ def after(func, pass_params=False, pass_result=True, pass_decorated=False,
         def wrapper(*args, **kwargs):
             """The function that replaces the decorated one"""
 
-            ret = decorated(*args, **kwargs)
+            decor = decorated
+
+            if _use_future_syntax:
+                decor = Decorated(decorated, args, kwargs)
+
+            ret = decor(*args, **kwargs)
 
             fn = func
 
-            if pass_result:
-                fn = partial(fn, ret)
+            if _use_future_syntax:
+                fn = partial(fn, decor)
+            else:
+                if pass_result:
+                    fn = partial(fn, ret)
 
-            if pass_params:
-                fn_args = get_fn_args(decorated, args)
-                fn = partial(fn, fn_args, kwargs)
+                if pass_params:
+                    fn_args = get_fn_args(decorated, args)
+                    fn = partial(fn, fn_args, kwargs)
 
-            if pass_decorated:
-                fn = partial(fn, decorated)
+                if pass_decorated:
+                    fn = partial(fn, decorated)
 
-            fkwargs = extras if unpack_extras else {extras_key: extras}
+            if unpack_extras or _use_future_syntax:
+                fkwargs = extras
+            else:
+                fkwargs = {extras_key: extras}
 
             fret = fn(**fkwargs)
 
@@ -296,7 +454,8 @@ def after(func, pass_params=False, pass_result=True, pass_decorated=False,
 
 def instead(func, pass_params=True, pass_decorated=True,
             implicit_method_decoration=True, instance_methods_only=False,
-            unpack_extras=True, extras_key='extras', **extras):
+            unpack_extras=True, extras_key='extras',
+            _use_future_syntax=False, **extras):
     """Specify a callable to be run in hte place of the decorated resource
 
     A callable provided to this decorator will be called any time the
@@ -362,6 +521,15 @@ def instead(func, pass_params=True, pass_decorated=True,
         (default ``"extras"``) the key to which to assign extra
         decorator keyword arguments when ``unpack_extras`` is ``False``
 
+    :param bool _use_future_syntax:
+        (default False) if True, use the new ``Decorated`` object,
+        which will become the default in version 2.0.0. If this
+        parameter is True, all other parameters will be ignored
+        expect for ``instance_methods_only`` and
+        ``implicit_method_decoration``, a ``Decorated`` object
+        will be passed to the function as its first argument,
+        and any provided keyword arguments will be unpacked.
+
     :param **dict extras:
         any extra keyword arguments supplied to the decoration call
 
@@ -377,14 +545,21 @@ def instead(func, pass_params=True, pass_decorated=True,
 
             fn = func
 
-            if pass_params:
-                fn_args = get_fn_args(decorated, args)
-                fn = partial(fn, fn_args, kwargs)
+            if _use_future_syntax:
+                decor = Decorated(decorated, args, kwargs)
+                fn = partial(fn, decor)
+            else:
+                if pass_params:
+                    fn_args = get_fn_args(decorated, args)
+                    fn = partial(fn, fn_args, kwargs)
 
-            if pass_decorated:
-                fn = partial(fn, decorated)
+                if pass_decorated:
+                    fn = partial(fn, decorated)
 
-            fkwargs = extras if unpack_extras else {extras_key: extras}
+            if unpack_extras or _use_future_syntax:
+                fkwargs = extras
+            else:
+                fkwargs = {extras_key: extras}
 
             return fn(**fkwargs)
 
@@ -405,7 +580,7 @@ def decorate(before=None, after=None, instead=None, before_opts=None,
              after_opts=None, instead_opts=None,
              implicit_method_decoration=True,
              instance_methods_only=False, unpack_extras=True,
-             extras_key='extras', **extras):
+             _use_future_syntax=False, extras_key='extras', **extras):
     """A decorator that combines before, after, and instead decoration
 
     The ``before``, ``after``, and ``instead`` decorators are all
@@ -493,6 +668,15 @@ def decorate(before=None, after=None, instead=None, before_opts=None,
         ``False``. If provided, this key serves as the default
         for the various decorators.
 
+    :param bool _use_future_syntax:
+        (default False) if True, use the new ``Decorated`` object,
+        which will become the default in version 2.0.0. If this
+        parameter is True, all other parameters will be ignored
+        expect for ``instance_methods_only`` and
+        ``implicit_method_decoration``, a ``Decorated`` object
+        will be passed to the function as its first argument,
+        and any provided keyword arguments will be unpacked.
+
     :param **dict extras:
         any extra keyword arguments supplied to the decoration call
 
@@ -517,6 +701,7 @@ def decorate(before=None, after=None, instead=None, before_opts=None,
         # Disallow mixing of class-level functionality
         opts['implicit_method_decoration'] = implicit_method_decoration
         opts['instance_methods_only'] = instance_methods_only
+        opts['_use_future_syntax'] = _use_future_syntax
 
     def decorator(decorated):
 
@@ -567,6 +752,7 @@ def construct_decorator(before=None, after=None, instead=None,
                         before_opts=None, after_opts=None, instead_opts=None,
                         implicit_method_decoration=True,
                         instance_methods_only=False, unpack_extras=True,
+                        _use_future_syntax=False,
                         extras_key='extras', **extras):
     """Return a custom decorator
 
@@ -590,133 +776,15 @@ def construct_decorator(before=None, after=None, instead=None,
         implicit_method_decoration=implicit_method_decoration,
         instance_methods_only=instance_methods_only,
         unpack_extras=unpack_extras, extras_key=extras_key,
+        _use_future_syntax=_use_future_syntax,
         **extras
-    )
-
-
-def intercept(catch=Exception, reraise=None, handler=None, err_msg=None,
-              include_context=False):
-    """Intercept an exception and either re-raise, handle, or both
-
-    Example:
-
-    .. code:: python
-
-        from logging import getLogger
-        from pydecor import intercept
-
-        log = getLogger(__name__)
-
-        class MyLibraryError(Exception):
-            pass
-
-        def error_handler(exception):
-            log.exception(exception)
-
-        # Re-raise and handle
-        @intercept(catch=ValueError, reraise=MyLibraryError,
-                   handler=error_handler):
-        def some_error_prone_function():
-            return int('foo')
-
-        # Re-raise only
-        @intercept(catch=TypeError, reraise=MyLibraryError)
-        def another_error_prone_function(splittable_string):
-            return splittable_string.split('/', '.')
-
-        # Handle only
-        @intercept(catch=ValueError, handle=error_handler)
-        def ignorable_error(some_string):
-            # Just run the handler on error, rather than re-raising
-            log.info('This string is {}'.format(int(string)))
-
-
-    :param Type[Exception] catch: the exception to catch
-    :param Union[bool, Type[Exception]] reraise: the exception to
-        re-raise or ``True``. If an exception is provided, that
-        exception will be raised. If ``True``, the original
-        exception will be re-raised. If ``False`` or ``None``,
-        no exception will be raised. Note that if a ``handler``
-        is provided, it will always be called prior to re-raising.
-    :param Callable[[Type[Exception]],Any] handler: a function to call
-        with the caught exception as its only argument. If not provided,
-        nothing will be done with the caught exception
-    :param str err_msg: An optional string with which to call the
-        re-raised exception. If not provided, the caught exception
-        will be cast to a string and used instead.
-    :param include_context: if True, the previous exception will be
-        included in the context of the re-raised exception, which
-        means the traceback will show both exceptions, noting that
-        the first exception "was the direct cause of the following
-        exception"
-    """
-    return instead(
-        functions.intercept,
-        catch=catch,
-        reraise=reraise,
-        handler=handler,
-        err_msg=err_msg,
-        include_context=include_context
-    )
-
-
-def log_call(logger=None, level='info', format_str=LOG_CALL_FMT_STR):
-    """Log the name, parameters, & result of a function call
-
-    If not provided, a logger instance will be retrieved corresponding
-    to the module name of the decorated function, so if you decorate
-    the function ``do_magic()`` in the module ``magic.py``, the
-    retrieved logger will be the same as one retrieved in ``magic.py``
-    with ``logging.getLogger(__name__)``
-
-    The ``level`` provided here **does not** set the log level of the
-    passed or retrieved logger. It just determines what level the
-    generated message should be logged with.
-
-    Example:
-
-    * Assume the following is found in ``log_example.py``
-
-    .. code:: python
-
-        from pydecor import log_call
-
-        @log_call
-        def return_none(*args, **kwargs):
-            return None
-
-        return_none('alright', my='man')
-
-        # Will retrieve the ``log_example`` logger
-        # and log the message:
-        # "return_none(*('alright', ), **{'my': 'man'}) -> None"
-
-    :param Optional[logging.Logger] logger: an optional Logger
-        instance. If not provided, the logger corresponding to the
-        decorated function's module name will be retrieved
-    :param str level: the level with which to log the message. Must
-        be an acceptable Python log level
-    :param str format_str: the format string to use when interpolating
-        the message. This defaults to
-        ``'{name}(*{args}, **{kwargs}) -> {result}'``. Any provided
-        format string should contain the same keys, which will be
-        interpolated appropriately.
-
-    :rtype: DecoratorType
-    """
-    return after(
-        functions.log_call,
-        pass_params=True,
-        pass_decorated=True,
-        logger=logger,
-        level=level,
-        format_str=format_str
     )
 
 
 def _kwargs_from_opts(opts, unpack_extras, extras_key, extras):
     kwargs = opts
-    if opts.get('unpack_extras', unpack_extras):
+    if (opts.get('unpack_extras', unpack_extras) or
+            opts.get('_use_future_syntax', False)):
         kwargs.update(extras)
     else:
         key = opts.get('extras_key', extras_key)
