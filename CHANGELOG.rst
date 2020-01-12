@@ -50,3 +50,10 @@ Read the Docs account and moved the documentation there.
 
 * Uploaded README to point to new docs
 * Added docs build image for funsies.
+
+1.2.0a1
+-------
+
+Visibility control decorator
+
+* ``export`` - register entities in a module in ``__ALL__``

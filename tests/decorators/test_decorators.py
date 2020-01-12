@@ -87,8 +87,8 @@ _class_params = (
     (None, {'implicit_method_decoration': False}, (), {}),
     (None, {'instance_methods_only': True}, (), {}),
     (
-        None, 
-        {'implicit_method_decoration': False, 'instance_methods_only': True}, 
+        None,
+        {'implicit_method_decoration': False, 'instance_methods_only': True},
         (), {}
     ),
     (

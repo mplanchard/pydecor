@@ -14,6 +14,7 @@ __all__ = (
     'intercept',
     'log_call',
     'memoize',
+    'export'
 )
 
 from .generic import *
