@@ -1,8 +1,7 @@
+-r requirements.txt
 coverage
 ipdb
 mock;python_version<"3.0"
 pytest
 pytest-cov
-sphinx
-sphinx-autodoc-typehints
 tox
