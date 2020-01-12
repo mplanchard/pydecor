@@ -28,6 +28,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+pip-wheel-metadata/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -49,6 +50,7 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+.pytest.xml
 
 # Translations
 *.mo

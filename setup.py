@@ -26,20 +26,30 @@ with open(join(fdir, "README.rst"), encoding="utf-8") as readmefile:
     LONG_DESC = readmefile.read()
 
 
-KEYWORDS = ["decorators", "python2", "python3"]
+KEYWORDS = ["decorators", "python3"]
 
 
 PACKAGE_DEPENDENCIES = []
 SETUP_DEPENDENCIES = []
 TEST_DEPENDENCIES = []
-EXTRAS_DEPENDENCIES = {}
 
 ENTRY_POINTS = {}
+
 
 with open(join(fdir, "requirements.txt")) as reqfile:
     for ln in reqfile:
         if not ln.startswith("#"):
             PACKAGE_DEPENDENCIES.append(ln.strip())
+
+
+with open(join(fdir, "requirements-dev.txt")) as reqfile:
+    for ln in reqfile:
+        if not ln.startswith("#") and not ln.startswith("-r"):
+            TEST_DEPENDENCIES.append(ln.strip())
+
+
+EXTRAS_DEPENDENCIES = {"dev": TEST_DEPENDENCIES}
+
 
 # See https://pypi.python.org/pypi?%3Aaction=list_classifiers for all
 # available setup classifiers
@@ -64,15 +74,15 @@ CLASSIFIERS = [
     "Natural Language :: English",
     # 'Operating System :: MacOS :: MacOS X
     "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python",
-    # 'Programming Language :: Python :: 3 :: Only',
+    # "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
     # 'Programming Language :: Python :: Implementation :: PyPy',
 ]
 
 
 __version__ = "0.0.0"
 
-with open(join(fdir, "{0}/_version.py".format(NAME))) as version_file:
+with open(join(fdir, "src/{0}/_version.py".format(NAME))) as version_file:
     for line in version_file:
         # This will populate the __version__ and __version_info__ variables
         if line.startswith("__"):
@@ -88,7 +98,8 @@ setup(
     author_email=EMAIL,
     classifiers=CLASSIFIERS,
     keywords=KEYWORDS,
-    packages=find_packages(exclude=["*.tests", "*.tests.*"]),
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
     install_requires=PACKAGE_DEPENDENCIES,
     setup_requires=SETUP_DEPENDENCIES,
     tests_require=TEST_DEPENDENCIES,
