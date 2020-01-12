@@ -1,21 +1,18 @@
-pydecor\.decorators package
-===========================
+pydecor.decorators package
+==========================
 
 Submodules
 ----------
 
 .. toctree::
 
-   pydecor.decorators._utility
    pydecor.decorators.generic
    pydecor.decorators.ready_to_wear
-   pydecor.decorators.visibility
 
 Module contents
 ---------------
 
 .. automodule:: pydecor.decorators
-    :members:
-    :private-members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,8 +1,0 @@
-pydecor\.\_version module
-=========================
-
-.. automodule:: pydecor._version
-    :members:
-    :private-members:
-    :undoc-members:
-    :show-inheritance:

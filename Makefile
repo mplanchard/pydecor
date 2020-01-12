@@ -15,7 +15,7 @@ TEST = pytest \
 all: fmt lint test
 
 venv: venv/bin/activate
-venv/bin/activate: setup.py
+venv/bin/activate: setup.py requirements.txt requirements-dev.txt
 	python3 -m venv venv
 	$(VENV) pip install -e .[dev]
 	touch venv/bin/activate

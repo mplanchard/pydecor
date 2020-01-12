@@ -14,7 +14,7 @@ from time import time
 
 
 class LRUCache(OrderedDict):
-    """Self-pruning cache using an LRU strategy
+    """Self-pruning cache using an LRU strategy.
 
     If instantiated with a ``max_size`` other than ``0``, will
     automatically prune the least-recently-used (LRU) key/value

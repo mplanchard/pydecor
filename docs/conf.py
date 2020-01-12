@@ -10,6 +10,7 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+from datetime import datetime
 from os.path import abspath, dirname, join, realpath
 from subprocess import PIPE, Popen
 
@@ -73,7 +74,7 @@ master_doc = "index"
 
 # General information about the project.
 project = NAME
-copyright = "2017, {}".format(AUTHOR)
+copyright = "{}, {}".format(datetime.now().year, AUTHOR)
 author = AUTHOR
 
 # The version info for the project you're documenting, acts as replacement for

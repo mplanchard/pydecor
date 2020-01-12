@@ -1,8 +1,7 @@
-pydecor\.constants module
-=========================
+pydecor.constants module
+========================
 
 .. automodule:: pydecor.constants
-    :members:
-    :private-members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:
