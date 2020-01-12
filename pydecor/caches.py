@@ -6,11 +6,7 @@ Caches for memoization
 from __future__ import absolute_import, unicode_literals
 
 
-__all__ = (
-    'LRUCache',
-    'FIFOCache',
-    'TimedCache',
-)
+__all__ = ("LRUCache", "FIFOCache", "TimedCache")
 
 
 from collections import OrderedDict

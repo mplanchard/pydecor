@@ -14,13 +14,13 @@ from __future__ import absolute_import, unicode_literals
 
 
 __all__ = (
-    'after',
-    'before',
-    'construct_decorator',
-    'decorate',
-    'instead',
-    'Decorated',
-    'DecoratorType',
+    "after",
+    "before",
+    "construct_decorator",
+    "decorate",
+    "instead",
+    "Decorated",
+    "DecoratorType",
 )
 
 
@@ -98,7 +98,7 @@ class Decorated(object):
         been called or the result of that call
     """
 
-    __slots__ = ('args', 'kwargs', 'wrapped', 'result')
+    __slots__ = ("args", "kwargs", "wrapped", "result")
 
     def __init__(self, wrapped, args, kwargs, result=None):
         """Instantiate a Decorated object
@@ -110,18 +110,18 @@ class Decorated(object):
         :param
         """
         sup = super(Decorated, self)
-        sup.__setattr__('args', get_fn_args(wrapped, args))
-        sup.__setattr__('kwargs', kwargs)
-        sup.__setattr__('wrapped', self._sets_results(wrapped))
-        sup.__setattr__('result', result)
+        sup.__setattr__("args", get_fn_args(wrapped, args))
+        sup.__setattr__("kwargs", kwargs)
+        sup.__setattr__("wrapped", self._sets_results(wrapped))
+        sup.__setattr__("result", result)
 
     def __str__(self):
         """Return a nice string of self"""
-        if hasattr(self.wrapped, '__name__'):
+        if hasattr(self.wrapped, "__name__"):
             name = self.wrapped.__name__
         else:
             name = str(self.wrapped)
-        return '<Decorated {}({}, {})>'.format(name, self.args, self.kwargs)
+        return "<Decorated {}({}, {})>".format(name, self.args, self.kwargs)
 
     def __call__(self, *args, **kwargs):
         """Call the function the specified arguments.
@@ -141,20 +141,28 @@ class Decorated(object):
 
         :param callable wrapped: the wrapped function, class, or method
         """
+
         @wraps(wrapped)
         def wrapped_wrapped(*args, **kwargs):
             """Set self.result after calling wrapped"""
             res = wrapped(*args, **kwargs)
-            super(Decorated, self).__setattr__('result', res)
+            super(Decorated, self).__setattr__("result", res)
             return res
 
         return wrapped_wrapped
 
 
-def before(func, pass_params=False, pass_decorated=False,
-           implicit_method_decoration=True, instance_methods_only=False,
-           unpack_extras=True, extras_key='extras',
-           _use_future_syntax=False, **extras):
+def before(
+    func,
+    pass_params=False,
+    pass_decorated=False,
+    implicit_method_decoration=True,
+    instance_methods_only=False,
+    unpack_extras=True,
+    extras_key="extras",
+    _use_future_syntax=False,
+    **extras,
+):
     """Specify a callable to be run before the decorated resource
 
     A callable provided to this decorator will be called
@@ -285,7 +293,7 @@ def before(func, pass_params=False, pass_decorated=False,
             return ClassWrapper.wrap(
                 decorated,
                 decorator,
-                instance_methods_only=instance_methods_only
+                instance_methods_only=instance_methods_only,
             )
 
         # Equivalent to @wraps(decorated) on `wrapper`
@@ -294,10 +302,18 @@ def before(func, pass_params=False, pass_decorated=False,
     return decorator
 
 
-def after(func, pass_params=False, pass_result=True, pass_decorated=False,
-          implicit_method_decoration=True, instance_methods_only=False,
-          unpack_extras=True, extras_key='extras',
-          _use_future_syntax=False, **extras):
+def after(
+    func,
+    pass_params=False,
+    pass_result=True,
+    pass_decorated=False,
+    implicit_method_decoration=True,
+    instance_methods_only=False,
+    unpack_extras=True,
+    extras_key="extras",
+    _use_future_syntax=False,
+    **extras,
+):
     """Specify a callable to be run after the decorated resource
 
     A callable provided to this decorator will be called
@@ -443,7 +459,7 @@ def after(func, pass_params=False, pass_result=True, pass_decorated=False,
             return ClassWrapper.wrap(
                 decorated,
                 decorator,
-                instance_methods_only=instance_methods_only
+                instance_methods_only=instance_methods_only,
             )
 
         # Equivalent to @wraps(decorated) on `wrapper`
@@ -452,10 +468,17 @@ def after(func, pass_params=False, pass_result=True, pass_decorated=False,
     return decorator
 
 
-def instead(func, pass_params=True, pass_decorated=True,
-            implicit_method_decoration=True, instance_methods_only=False,
-            unpack_extras=True, extras_key='extras',
-            _use_future_syntax=False, **extras):
+def instead(
+    func,
+    pass_params=True,
+    pass_decorated=True,
+    implicit_method_decoration=True,
+    instance_methods_only=False,
+    unpack_extras=True,
+    extras_key="extras",
+    _use_future_syntax=False,
+    **extras,
+):
     """Specify a callable to be run in hte place of the decorated resource
 
     A callable provided to this decorator will be called any time the
@@ -567,7 +590,7 @@ def instead(func, pass_params=True, pass_decorated=True,
             return ClassWrapper.wrap(
                 decorated,
                 decorator,
-                instance_methods_only=instance_methods_only
+                instance_methods_only=instance_methods_only,
             )
 
         # Equivalent to @wraps(decorated) on `wrapper`
@@ -576,11 +599,20 @@ def instead(func, pass_params=True, pass_decorated=True,
     return decorator
 
 
-def decorate(before=None, after=None, instead=None, before_opts=None,
-             after_opts=None, instead_opts=None,
-             implicit_method_decoration=True,
-             instance_methods_only=False, unpack_extras=True,
-             _use_future_syntax=False, extras_key='extras', **extras):
+def decorate(
+    before=None,
+    after=None,
+    instead=None,
+    before_opts=None,
+    after_opts=None,
+    instead_opts=None,
+    implicit_method_decoration=True,
+    instance_methods_only=False,
+    unpack_extras=True,
+    _use_future_syntax=False,
+    extras_key="extras",
+    **extras,
+):
     """A decorator that combines before, after, and instead decoration
 
     The ``before``, ``after``, and ``instead`` decorators are all
@@ -699,9 +731,9 @@ def decorate(before=None, after=None, instead=None, before_opts=None,
 
     for opts in (before_opts, after_opts, instead_opts):
         # Disallow mixing of class-level functionality
-        opts['implicit_method_decoration'] = implicit_method_decoration
-        opts['instance_methods_only'] = instance_methods_only
-        opts['_use_future_syntax'] = _use_future_syntax
+        opts["implicit_method_decoration"] = implicit_method_decoration
+        opts["instance_methods_only"] = instance_methods_only
+        opts["_use_future_syntax"] = _use_future_syntax
 
     def decorator(decorated):
 
@@ -740,7 +772,7 @@ def decorate(before=None, after=None, instead=None, before_opts=None,
             return ClassWrapper.wrap(
                 decorated,
                 decorator,
-                instance_methods_only=instance_methods_only
+                instance_methods_only=instance_methods_only,
             )
 
         return wraps(decorated)(wrapper)
@@ -748,12 +780,20 @@ def decorate(before=None, after=None, instead=None, before_opts=None,
     return decorator
 
 
-def construct_decorator(before=None, after=None, instead=None,
-                        before_opts=None, after_opts=None, instead_opts=None,
-                        implicit_method_decoration=True,
-                        instance_methods_only=False, unpack_extras=True,
-                        _use_future_syntax=False,
-                        extras_key='extras', **extras):
+def construct_decorator(
+    before=None,
+    after=None,
+    instead=None,
+    before_opts=None,
+    after_opts=None,
+    instead_opts=None,
+    implicit_method_decoration=True,
+    instance_methods_only=False,
+    unpack_extras=True,
+    _use_future_syntax=False,
+    extras_key="extras",
+    **extras,
+):
     """Return a custom decorator
 
     Options are all the same as for :any:`decorate` and are, in fact,
@@ -770,23 +810,29 @@ def construct_decorator(before=None, after=None, instead=None,
     :rtype: FunctionType
     """
     return partial(
-        decorate, before=before, after=after, instead=instead,
-        before_opts=before_opts, after_opts=after_opts,
+        decorate,
+        before=before,
+        after=after,
+        instead=instead,
+        before_opts=before_opts,
+        after_opts=after_opts,
         instead_opts=instead_opts,
         implicit_method_decoration=implicit_method_decoration,
         instance_methods_only=instance_methods_only,
-        unpack_extras=unpack_extras, extras_key=extras_key,
+        unpack_extras=unpack_extras,
+        extras_key=extras_key,
         _use_future_syntax=_use_future_syntax,
-        **extras
+        **extras,
     )
 
 
 def _kwargs_from_opts(opts, unpack_extras, extras_key, extras):
     kwargs = opts
-    if (opts.get('unpack_extras', unpack_extras) or
-            opts.get('_use_future_syntax', False)):
+    if opts.get("unpack_extras", unpack_extras) or opts.get(
+        "_use_future_syntax", False
+    ):
         kwargs.update(extras)
     else:
-        key = opts.get('extras_key', extras_key)
+        key = opts.get("extras_key", extras_key)
         kwargs[key] = extras
     return kwargs

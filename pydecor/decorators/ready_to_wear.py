@@ -7,12 +7,7 @@ in your codebase, minimal thinking required.
 from __future__ import absolute_import, unicode_literals
 
 
-__all__ = (
-    'export',
-    'intercept',
-    'log_call',
-    'memoize',
-)
+__all__ = ("export", "intercept", "log_call", "memoize")
 
 
 from logging import getLogger
@@ -28,8 +23,13 @@ from ._visibility import export
 log = getLogger(__name__)
 
 
-def intercept(catch=Exception, reraise=None, handler=None, err_msg=None,
-              include_context=False):
+def intercept(
+    catch=Exception,
+    reraise=None,
+    handler=None,
+    err_msg=None,
+    include_context=False,
+):
     """Intercept an exception and either re-raise, handle, or both.
 
     Example:
@@ -95,7 +95,7 @@ def intercept(catch=Exception, reraise=None, handler=None, err_msg=None,
     )
 
 
-def log_call(logger=None, level='info', format_str=LOG_CALL_FMT_STR):
+def log_call(logger=None, level="info", format_str=LOG_CALL_FMT_STR):
     """Log the name, parameters, & result of a function call
 
     If not provided, a logger instance will be retrieved corresponding
@@ -172,7 +172,5 @@ def memoize(keep=0, cache_class=LRUCache):
     :rtype: DecoratorType
     """
     return instead(
-        functions.memoize,
-        _use_future_syntax=True,
-        memo=cache_class(keep),
+        functions.memoize, _use_future_syntax=True, memo=cache_class(keep)
     )

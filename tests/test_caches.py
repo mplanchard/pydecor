@@ -161,7 +161,6 @@ class TestFIFO:
 
 
 class TestTimedCache:
-
     def test_untimed(self):
         """Test that not specifying a size lets the cache grow"""
         cache = TimedCache()

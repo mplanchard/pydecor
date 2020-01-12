@@ -47,74 +47,79 @@ PY2 = version_info < (3, 0)
 #
 _base_params = (
     (None, {}, (), {}),
-    ((('a', ), {'b': 'c'}), {}, ('d', ), {'e': 'f'}),
-    (None, {'pow': 'bang'}, (), {}),
-    ((('a', ), {'b': 'c'}), {'pow': 'bang'}, (), {}),
-    (None, {'pow': 'bang', 'bop': 'smack'}, (), {}),
-    (None, {'pass_decorated': True}, (), {}),
-    ((('a', ), {'b': 'c'}), {'pass_decorated': True}, (), {}),
-    (None, {'pass_params': False}, (), {}),
-    ((('a', ), {'b': 'c'}), {'pass_params': False}, (), {}),
-    (None, {'pass_params': False, 'pass_decorated': True}, (), {}),
-    (None, {'pass_params': False}, ('a', ), {'b': 'c'}),
-    (None, {'unpack_extras': False}, (), {}),
-    ((('a', ), {'b': 'c'}), {'unpack_extras': False}, (), {}),
-    (None, {'unpack_extras': False, 'pow': 'bang'}, (), {}),
-    (None, {'unpack_extras': False, 'extras_key': 'boo', 'k': 'd'}, (), {}),
+    ((("a",), {"b": "c"}), {}, ("d",), {"e": "f"}),
+    (None, {"pow": "bang"}, (), {}),
+    ((("a",), {"b": "c"}), {"pow": "bang"}, (), {}),
+    (None, {"pow": "bang", "bop": "smack"}, (), {}),
+    (None, {"pass_decorated": True}, (), {}),
+    ((("a",), {"b": "c"}), {"pass_decorated": True}, (), {}),
+    (None, {"pass_params": False}, (), {}),
+    ((("a",), {"b": "c"}), {"pass_params": False}, (), {}),
+    (None, {"pass_params": False, "pass_decorated": True}, (), {}),
+    (None, {"pass_params": False}, ("a",), {"b": "c"}),
+    (None, {"unpack_extras": False}, (), {}),
+    ((("a",), {"b": "c"}), {"unpack_extras": False}, (), {}),
+    (None, {"unpack_extras": False, "pow": "bang"}, (), {}),
+    (None, {"unpack_extras": False, "extras_key": "boo", "k": "d"}, (), {}),
     (None, {}, (), {}),
-    ((('a', ), {'b': 'c'}), {}, ('a', ), {'b': 'c'}),
-    (None, {'pass_params': False}, (), {}),
-    (None, {'pass_params': False, 'pass_decorated': False}, (), {}),
-    (None, {'wowee': 'zappo'}, (), {}),
-    (None, {'wowee': 'zappo', 'extras_key': 'zarblock'}, (), {}),
+    ((("a",), {"b": "c"}), {}, ("a",), {"b": "c"}),
+    (None, {"pass_params": False}, (), {}),
+    (None, {"pass_params": False, "pass_decorated": False}, (), {}),
+    (None, {"wowee": "zappo"}, (), {}),
+    (None, {"wowee": "zappo", "extras_key": "zarblock"}, (), {}),
     (
         None,
-        {'wowee': 'zappo', 'extras_key': 'zarblock', 'unpack_extras': False},
-        (), {}
+        {"wowee": "zappo", "extras_key": "zarblock", "unpack_extras": False},
+        (),
+        {},
     ),
 )
 
 
 base_params = []
 for i in _base_params:
-    base_params.append((before, ) + i)
-    base_params.append((after, ) + i)
-    base_params.append((instead, ) + i)
+    base_params.append((before,) + i)
+    base_params.append((after,) + i)
+    base_params.append((instead,) + i)
 
 
 # Extra parameter combinations mostly useful when testing class decoration
 _class_params = (
-    (None, {'implicit_method_decoration': False}, (), {}),
-    (None, {'instance_methods_only': True}, (), {}),
+    (None, {"implicit_method_decoration": False}, (), {}),
+    (None, {"instance_methods_only": True}, (), {}),
     (
         None,
-        {'implicit_method_decoration': False, 'instance_methods_only': True},
-        (), {}
+        {"implicit_method_decoration": False, "instance_methods_only": True},
+        (),
+        {},
     ),
     (
         None,
-        {'implicit_method_decoration': True, 'instance_methods_only': False},
-        (), {}
+        {"implicit_method_decoration": True, "instance_methods_only": False},
+        (),
+        {},
     ),
-    ((('a', ), {'b': 'c'}), {'implicit_method_decoration': False}, (), {}),
-    ((('a', ), {'b': 'c'}), {'instance_methods_only': True}, (), {}),
+    ((("a",), {"b": "c"}), {"implicit_method_decoration": False}, (), {}),
+    ((("a",), {"b": "c"}), {"instance_methods_only": True}, (), {}),
     (
-        (('a', ), {'b': 'c'}),
-        {'implicit_method_decoration': False, 'instance_methods_only': True},
-        (), {}
+        (("a",), {"b": "c"}),
+        {"implicit_method_decoration": False, "instance_methods_only": True},
+        (),
+        {},
     ),
     (
-        (('a', ), {'b': 'c'}),
-        {'implicit_method_decoration': True, 'instance_methods_only': False},
-        (), {}
+        (("a",), {"b": "c"}),
+        {"implicit_method_decoration": True, "instance_methods_only": False},
+        (),
+        {},
     ),
 )
 
 class_params = []
 for i in _class_params:
-    class_params.append((before, ) + i)
-    class_params.append((after, ) + i)
-    class_params.append((instead, ) + i)
+    class_params.append((before,) + i)
+    class_params.append((after,) + i)
+    class_params.append((instead,) + i)
 
 class_params.extend(base_params)
 
@@ -123,10 +128,10 @@ def func_sig_before(kwargs, fn_args, fn_kwargs, decorated):
     """Return the expected signature for the decorator func"""
     exp_args = ()
 
-    if kwargs.get('pass_params', False):
+    if kwargs.get("pass_params", False):
         exp_args += (fn_args, fn_kwargs)
 
-    if kwargs.get('pass_decorated', False):
+    if kwargs.get("pass_decorated", False):
         exp_args += (decorated,)
 
     extras = {}
@@ -137,27 +142,26 @@ def func_sig_before(kwargs, fn_args, fn_kwargs, decorated):
 
     exp_kwargs = {}
 
-    if kwargs.get('unpack_extras', True):
+    if kwargs.get("unpack_extras", True):
         exp_kwargs = extras
     else:
-        exp_kwargs[kwargs.get('extras_key', 'extras')] = extras
+        exp_kwargs[kwargs.get("extras_key", "extras")] = extras
 
     return exp_args, exp_kwargs
 
 
-def func_sig_after(kwargs, fn_args, fn_kwargs, decorated,
-                   decorated_ret):
+def func_sig_after(kwargs, fn_args, fn_kwargs, decorated, decorated_ret):
     """Return the expected signature for the decorator func"""
     exp_args = ()
 
-    if kwargs.get('pass_result', True):
-        exp_args += (decorated_ret, )
+    if kwargs.get("pass_result", True):
+        exp_args += (decorated_ret,)
 
-    if kwargs.get('pass_params', False):
+    if kwargs.get("pass_params", False):
         exp_args += (fn_args, fn_kwargs)
 
-    if kwargs.get('pass_decorated', False):
-        exp_args += (decorated, )
+    if kwargs.get("pass_decorated", False):
+        exp_args += (decorated,)
 
     extras = {}
 
@@ -167,10 +171,10 @@ def func_sig_after(kwargs, fn_args, fn_kwargs, decorated,
 
     exp_kwargs = {}
 
-    if kwargs.get('unpack_extras', True):
+    if kwargs.get("unpack_extras", True):
         exp_kwargs = extras
     else:
-        exp_kwargs[kwargs.get('extras_key', 'extras')] = extras
+        exp_kwargs[kwargs.get("extras_key", "extras")] = extras
 
     return exp_args, exp_kwargs
 
@@ -179,11 +183,11 @@ def func_sig_instead(kwargs, fn_args, fn_kwargs, decorated):
     """Return the expected signature for the decorator func"""
     exp_args = ()
 
-    if kwargs.get('pass_params', True):
+    if kwargs.get("pass_params", True):
         exp_args += (fn_args, fn_kwargs)
 
-    if kwargs.get('pass_decorated', True):
-        exp_args += (decorated, )
+    if kwargs.get("pass_decorated", True):
+        exp_args += (decorated,)
 
     extras = {}
 
@@ -193,25 +197,25 @@ def func_sig_instead(kwargs, fn_args, fn_kwargs, decorated):
 
     exp_kwargs = {}
 
-    if kwargs.get('unpack_extras', True):
+    if kwargs.get("unpack_extras", True):
         exp_kwargs = extras
     else:
-        exp_kwargs[kwargs.get('extras_key', 'extras')] = extras
+        exp_kwargs[kwargs.get("extras_key", "extras")] = extras
 
     return exp_args, exp_kwargs
 
 
 func_sig_map = {
     before: func_sig_before,
-    'before': func_sig_before,
+    "before": func_sig_before,
     after: func_sig_after,
-    'after': func_sig_after,
+    "after": func_sig_after,
     instead: func_sig_instead,
-    'instead': func_sig_instead,
+    "instead": func_sig_instead,
 }
 
 
-@pytest.mark.parametrize('decor, ret, kwargs, fn_args, fn_kwargs', base_params)
+@pytest.mark.parametrize("decor, ret, kwargs, fn_args, fn_kwargs", base_params)
 def test_function_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
     """Test the decoration of functions
 
@@ -224,13 +228,13 @@ def test_function_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
     :param fn_kwargs: the kwargs with which the decorated function
         will be called
     """
-    decorated_mock_return = 'billyrubin'
+    decorated_mock_return = "billyrubin"
 
     func_mock = Mock(return_value=ret)
     decorated_mock = Mock(return_value=decorated_mock_return)
 
-    func_mock.__name__ = str('func_mock')
-    decorated_mock.__name__ = str('decorated_mock')
+    func_mock.__name__ = str("func_mock")
+    decorated_mock.__name__ = str("decorated_mock")
 
     fn = decor(func_mock, **kwargs)(decorated_mock)
     fn_ret = fn(*fn_args, **fn_kwargs)
@@ -267,23 +271,20 @@ def test_function_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
         assert ret == fn_ret
 
     else:
-        assert False, 'Unexpected decorator???'
+        assert False, "Unexpected decorator???"
 
 
-@pytest.mark.parametrize(
-    'decor, ret, kwargs, fn_args, fn_kwargs', class_params
-)
+@pytest.mark.parametrize("decor, ret, kwargs, fn_args, fn_kwargs", class_params)
 def test_class_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
     """Test decorators when applied to a class"""
     func_mock = Mock(return_value=ret)
-    decorated_return = 'wow, what a return'
-    meth_mock = Mock(name='meth_mock', return_value=decorated_return)
-    cls_mock = Mock(name='cls_mock', return_value=decorated_return)
-    static_mock = Mock(name='static_mock', return_value=decorated_return)
+    decorated_return = "wow, what a return"
+    meth_mock = Mock(name="meth_mock", return_value=decorated_return)
+    cls_mock = Mock(name="cls_mock", return_value=decorated_return)
+    static_mock = Mock(name="static_mock", return_value=decorated_return)
 
     @decor(func_mock, **kwargs)
     class TheClass(object):
-
         def method(self, *args, **kwargs):
             return meth_mock(self, *args, **kwargs)
 
@@ -297,11 +298,11 @@ def test_class_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
 
     mocks = (meth_mock, cls_mock, static_mock)
 
-    for name, mock in zip(('method', 'cls', 'static'), mocks):
+    for name, mock in zip(("method", "cls", "static"), mocks):
 
-        if (not kwargs.get('implicit_method_decoration', True) or
-                (name != 'method' and
-                     kwargs.get('instance_methods_only', False))):
+        if not kwargs.get("implicit_method_decoration", True) or (
+            name != "method" and kwargs.get("instance_methods_only", False)
+        ):
             # This functionality tested elsewhere
             return
 
@@ -312,10 +313,10 @@ def test_class_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
 
         exp_meth_args = ()
 
-        if name == 'method':
-            exp_meth_args += (theclass.__wrapped__, )
-        elif name == 'cls':
-            exp_meth_args += (TheClass.__wrapped__, )
+        if name == "method":
+            exp_meth_args += (theclass.__wrapped__,)
+        elif name == "cls":
+            exp_meth_args += (TheClass.__wrapped__,)
 
         exp_meth_args += fn_args
 
@@ -335,8 +336,8 @@ def test_class_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
             if ret is not None:
                 assert len(ret) == 2
                 exp_args, exp_kwargs = ret
-                if name != 'static':
-                    exp_args = (exp_meth_args[0], ) + exp_args
+                if name != "static":
+                    exp_args = (exp_meth_args[0],) + exp_args
                 mock.assert_called_once_with(*exp_args, **exp_kwargs)
             else:
                 mock.assert_called_once_with(*exp_meth_args, **fn_kwargs)
@@ -356,15 +357,16 @@ def test_class_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
             assert meth_ret == ret
 
         else:
-            assert False, 'Unexpected decorator???'
+            assert False, "Unexpected decorator???"
 
 
-@pytest.mark.parametrize('decor, ret, kwargs, fn_args, fn_kwargs', base_params)
-def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs,
-                            pass_mock=None, decor_name=None):
+@pytest.mark.parametrize("decor, ret, kwargs, fn_args, fn_kwargs", base_params)
+def test_decorate_no_mixing(
+    decor, ret, kwargs, fn_args, fn_kwargs, pass_mock=None, decor_name=None
+):
     """Test the ``decorate`` decorator, one type at a time"""
 
-    decorated_mock_return = 'Elementary'
+    decorated_mock_return = "Elementary"
 
     decor_name = decor_name or decor.__name__
 
@@ -372,8 +374,8 @@ def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs,
 
     decorated_mock = Mock(return_value=decorated_mock_return)
 
-    pass_mock.__name__ = str('before_mock')
-    decorated_mock.__name__ = str('decorated_mock')
+    pass_mock.__name__ = str("before_mock")
+    decorated_mock.__name__ = str("decorated_mock")
 
     kwargs[decor_name] = pass_mock
 
@@ -383,7 +385,7 @@ def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs,
 
     fn_sig_func = func_sig_map[decor_name]
     fn_sig_args = [kwargs, fn_args, fn_kwargs, decorated_mock]
-    if decor_name == 'after':
+    if decor_name == "after":
         fn_sig_args.append(decorated_mock_return)
 
     # Remove the before/after/instead key from the kwargs dict, since
@@ -395,7 +397,7 @@ def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs,
 
     pass_mock.assert_called_once_with(*exp_args, **exp_kwargs)
 
-    if decor_name == 'before':
+    if decor_name == "before":
         if ret is not None:
             assert len(ret) == 2
             args, kwargs = ret
@@ -405,7 +407,7 @@ def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs,
 
         assert fn_ret == decorated_mock_return
 
-    elif decor_name == 'after':
+    elif decor_name == "after":
         decorated_mock.assert_called_once_with(*fn_args, **fn_kwargs)
 
         if ret is not None:
@@ -413,22 +415,23 @@ def test_decorate_no_mixing(decor, ret, kwargs, fn_args, fn_kwargs,
         else:
             assert fn_ret == decorated_mock_return
 
-    elif decor_name == 'instead':
+    elif decor_name == "instead":
         decorated_mock.assert_not_called()
         assert ret == fn_ret
 
     else:
-        assert False, 'Unexpected decorator???'
+        assert False, "Unexpected decorator???"
 
 
-@pytest.mark.parametrize('decor, ret, kwargs, fn_args, fn_kwargs', base_params)
-def test_decorator_constructor_no_mixing(decor, ret, kwargs, fn_args,
-                                         fn_kwargs):
+@pytest.mark.parametrize("decor, ret, kwargs, fn_args, fn_kwargs", base_params)
+def test_decorator_constructor_no_mixing(
+    decor, ret, kwargs, fn_args, fn_kwargs
+):
     """Test that decorator-generated decorators behave as expected"""
 
     pass_mock = Mock(return_value=ret)
 
-    pass_mock.__name__ = str('before_mock')
+    pass_mock.__name__ = str("before_mock")
 
     kwargs[decor.__name__] = pass_mock
 
@@ -446,20 +449,19 @@ def test_decorator_constructor_no_mixing(decor, ret, kwargs, fn_args,
     )
 
 
-@pytest.mark.parametrize('decorator', [before, after, instead])
+@pytest.mark.parametrize("decorator", [before, after, instead])
 def test_direct_method_decoration(decorator):
     """Test the persistence across calls of extras"""
 
-    inst_tracker = Mock(name='inst_tracker', return_value=None)
-    cls_tracker = Mock(name='cls_tracker', return_value=None)
-    static_tracker = Mock(name='static_tracker', return_value=None)
+    inst_tracker = Mock(name="inst_tracker", return_value=None)
+    cls_tracker = Mock(name="cls_tracker", return_value=None)
+    static_tracker = Mock(name="static_tracker", return_value=None)
 
-    inst_tracker.__name__ = str('inst_tracker')
-    cls_tracker.__name__ = str('cls_tracker')
-    static_tracker.__name__ = str('static_tracker')
+    inst_tracker.__name__ = str("inst_tracker")
+    cls_tracker.__name__ = str("cls_tracker")
+    static_tracker.__name__ = str("static_tracker")
 
     class SomeClass(object):
-
         @decorator(inst_tracker, pass_params=True)
         def some_method(self):
             pass
@@ -493,22 +495,25 @@ def test_direct_method_decoration(decorator):
         assert kwargs == {}
 
 
-@pytest.mark.parametrize('decorator', [before, after, instead])
+@pytest.mark.parametrize("decorator", [before, after, instead])
 def test_extras_persistence(decorator):
     """Test the persistence across calls of extras"""
 
     def memo_func(memo, **kwargs):
-        memo.append('called')
+        memo.append("called")
 
     memo = []
 
     decorated = Mock(return_value=None)
 
-    decorated.__name__ = str('decorated_mock')
+    decorated.__name__ = str("decorated_mock")
 
     decorated = decorator(
-        memo_func, pass_params=False, pass_result=False,
-        pass_decorated=False, memo=memo,
+        memo_func,
+        pass_params=False,
+        pass_result=False,
+        pass_decorated=False,
+        memo=memo,
     )(decorated)
 
     for _ in range(5):
@@ -517,19 +522,23 @@ def test_extras_persistence(decorator):
     assert len(memo) == 5
 
 
-@pytest.mark.parametrize('decorator', [before, after, instead])
+@pytest.mark.parametrize("decorator", [before, after, instead])
 def test_extras_persistence_class(decorator):
     """Test persistence of extras when decorating a class"""
 
     def memo_func(memo, **kwargs):
-        memo.append('called')
+        memo.append("called")
 
     memo = []
 
-    @decorator(memo_func, pass_params=False, pass_result=False,
-               pass_decorated=False, memo=memo)
+    @decorator(
+        memo_func,
+        pass_params=False,
+        pass_result=False,
+        pass_decorated=False,
+        memo=memo,
+    )
     class GreatClass(object):
-
         def awesome_method(self):
             pass
 
@@ -543,7 +552,7 @@ def test_extras_persistence_class(decorator):
 
         @property
         def prop(self):
-            return 'prop'
+            return "prop"
 
     gc = GreatClass()
 
@@ -575,20 +584,24 @@ def test_extras_persistence_class(decorator):
     assert len(memo) == 10
 
 
-@pytest.mark.parametrize('decorator', [before, after, instead])
+@pytest.mark.parametrize("decorator", [before, after, instead])
 def test_extras_persistence_class_inst_only(decorator):
     """Test persistence of extras, instance methods only"""
 
     def memo_func(memo, **kwargs):
-        memo.append('called')
+        memo.append("called")
 
     memo = []
 
-    @decorator(memo_func, pass_params=False, pass_result=False,
-               pass_decorated=False, instance_methods_only=True,
-               memo=memo)
+    @decorator(
+        memo_func,
+        pass_params=False,
+        pass_result=False,
+        pass_decorated=False,
+        instance_methods_only=True,
+        memo=memo,
+    )
     class GreatClass(object):
-
         def awesome_method(self):
             pass
 
@@ -602,7 +615,7 @@ def test_extras_persistence_class_inst_only(decorator):
 
         @property
         def prop(self):
-            return 'prop'
+            return "prop"
 
     gc = GreatClass()
 
@@ -636,12 +649,12 @@ def test_extras_persistence_class_inst_only(decorator):
 
 def test_stacking_before_after():
     """Test the stacking of before followed by after"""
-    tracker = Mock(name='tracker', return_value=None)
+    tracker = Mock(name="tracker", return_value=None)
 
-    decorated = Mock(name='decorated', return_value='decorated')
+    decorated = Mock(name="decorated", return_value="decorated")
 
-    tracker.__name__ = str('tracker')
-    decorated.__name__ = str('decorated')
+    tracker.__name__ = str("tracker")
+    decorated.__name__ = str("decorated")
 
     fn = before(tracker)(decorated)
     fn = after(tracker)(fn)
@@ -657,18 +670,18 @@ def test_stacking_before_after():
     assert before_call_args == ()
     assert before_call_kwargs == {}
 
-    assert after_call_args == ('decorated', )
+    assert after_call_args == ("decorated",)
     assert after_call_kwargs == {}
 
 
 def test_stacking_after_before():
     """Test stacking of after prior to before"""
-    tracker = Mock(name='tracker', return_value=None)
+    tracker = Mock(name="tracker", return_value=None)
 
-    decorated = Mock(name='decorated', return_value='decorated')
+    decorated = Mock(name="decorated", return_value="decorated")
 
-    tracker.__name__ = str('tracker')
-    decorated.__name__ = str('decorated')
+    tracker.__name__ = str("tracker")
+    decorated.__name__ = str("decorated")
 
     fn = after(tracker)(decorated)
     fn = before(tracker)(fn)
@@ -686,23 +699,23 @@ def test_stacking_after_before():
     assert before_call_args == ()
     assert before_call_kwargs == {}
 
-    assert after_call_args == ('decorated', )
+    assert after_call_args == ("decorated",)
     assert after_call_kwargs == {}
 
 
-@pytest.mark.parametrize('decor', [before, after])
+@pytest.mark.parametrize("decor", [before, after])
 def test_stacking_instead(decor):
     """Test stacking when instead is specified last (which is WRONG)
 
     Note that putting instead late in the stack WILL override
     any previous decorators!
     """
-    tracker = Mock(name='tracker', return_value=None)
+    tracker = Mock(name="tracker", return_value=None)
 
-    decorated = Mock(name='decorated', return_value='decorated')
+    decorated = Mock(name="decorated", return_value="decorated")
 
-    tracker.__name__ = str('tracker')
-    decorated.__name__ = str('decorated')
+    tracker.__name__ = str("tracker")
+    decorated.__name__ = str("decorated")
 
     fn = decor(tracker)(decorated)
     fn = instead(tracker)(fn)
@@ -720,12 +733,12 @@ def test_stacking_instead_before():
 
     In this case, before should run properly.
     """
-    tracker = Mock(name='tracker', return_value=None)
+    tracker = Mock(name="tracker", return_value=None)
 
-    decorated = Mock(name='decorated', return_value='decorated')
+    decorated = Mock(name="decorated", return_value="decorated")
 
-    tracker.__name__ = str('tracker')
-    decorated.__name__ = str('decorated')
+    tracker.__name__ = str("tracker")
+    decorated.__name__ = str("decorated")
 
     fn = instead(tracker)(decorated)
     fn = before(tracker)(fn)
@@ -751,12 +764,12 @@ def test_stacking_instead_after():
 
     In this case, after should behave properly
     """
-    tracker = Mock(name='tracker', return_value=None)
+    tracker = Mock(name="tracker", return_value=None)
 
-    decorated = Mock(name='decorated', return_value='decorated')
+    decorated = Mock(name="decorated", return_value="decorated")
 
-    tracker.__name__ = str('tracker')
-    decorated.__name__ = str('decorated')
+    tracker.__name__ = str("tracker")
+    decorated.__name__ = str("decorated")
 
     fn = instead(tracker)(decorated)
     fn = after(tracker)(fn)
@@ -773,7 +786,7 @@ def test_stacking_instead_after():
     assert instead_call_args == ((), {}, decorated)
     assert instead_call_kwargs == {}
 
-    assert after_call_args == (None, )
+    assert after_call_args == (None,)
     assert after_call_kwargs == {}
 
 
@@ -782,12 +795,12 @@ def test_stacking_instead_before_after():
 
     As long as instead is specified first, this should work fine
     """
-    tracker = Mock(name='tracker', return_value=None)
+    tracker = Mock(name="tracker", return_value=None)
 
-    decorated = Mock(name='decorated', return_value='decorated')
+    decorated = Mock(name="decorated", return_value="decorated")
 
-    tracker.__name__ = str('tracker')
-    decorated.__name__ = str('decorated')
+    tracker.__name__ = str("tracker")
+    decorated.__name__ = str("decorated")
 
     fn = instead(tracker)(decorated)
     fn = before(tracker)(fn)
@@ -809,7 +822,7 @@ def test_stacking_instead_before_after():
     assert instead_call_args == ((), {}, decorated)
     assert instead_call_kwargs == {}
 
-    assert after_call_args == (None, )
+    assert after_call_args == (None,)
     assert after_call_kwargs == {}
 
 
@@ -818,12 +831,12 @@ def test_stacking_instead_after_before():
 
     This should work exactly the same as instead-before-after
     """
-    tracker = Mock(name='tracker', return_value=None)
+    tracker = Mock(name="tracker", return_value=None)
 
-    decorated = Mock(name='decorated', return_value='decorated')
+    decorated = Mock(name="decorated", return_value="decorated")
 
-    tracker.__name__ = str('tracker')
-    decorated.__name__ = str('decorated')
+    tracker.__name__ = str("tracker")
+    decorated.__name__ = str("decorated")
 
     fn = instead(tracker)(decorated)
     fn = after(tracker)(fn)
@@ -845,35 +858,38 @@ def test_stacking_instead_after_before():
     assert instead_call_args == ((), {}, decorated)
     assert instead_call_kwargs == {}
 
-    assert after_call_args == (None, )
+    assert after_call_args == (None,)
     assert after_call_kwargs == {}
 
 
-@pytest.mark.parametrize('raises, catch, reraise, include_handler', [
-    (Exception, Exception, ValueError, False),
-    (Exception, Exception, ValueError, True),
-    (Exception, Exception, True, True),
-    (Exception, Exception, True, False),
-    (None, Exception, ValueError, False),
-    (None, Exception, ValueError, True),
-    (Exception, Exception, None, False),
-    (Exception, Exception, None, True),
-    (Exception, RuntimeError, ValueError, False),  # won't catch
-    (Exception, RuntimeError, ValueError, True),  # won't catch
-])
+@pytest.mark.parametrize(
+    "raises, catch, reraise, include_handler",
+    [
+        (Exception, Exception, ValueError, False),
+        (Exception, Exception, ValueError, True),
+        (Exception, Exception, True, True),
+        (Exception, Exception, True, False),
+        (None, Exception, ValueError, False),
+        (None, Exception, ValueError, True),
+        (Exception, Exception, None, False),
+        (Exception, Exception, None, True),
+        (Exception, RuntimeError, ValueError, False),  # won't catch
+        (Exception, RuntimeError, ValueError, True),  # won't catch
+    ],
+)
 def test_intercept(raises, catch, reraise, include_handler):
     """Test the intercept decorator"""
     wrapped = Mock()
 
-    wrapped.__name__ = str('wrapped')
+    wrapped.__name__ = str("wrapped")
 
     if raises is not None:
         wrapped.side_effect = raises
 
-    handler = Mock(name='handler') if include_handler else None
+    handler = Mock(name="handler") if include_handler else None
 
     if handler is not None:
-        handler.__name__ = str('handler')
+        handler.__name__ = str("handler")
 
     fn = intercept(catch=catch, reraise=reraise, handler=handler)(wrapped)
 
@@ -904,20 +920,17 @@ def test_log_call():
     exp_logger = getLogger(__name__)
     exp_logger.debug = Mock()
 
-    @log_call(level='debug')
+    @log_call(level="debug")
     def func(*args, **kwargs):
-        return 'foo'
+        return "foo"
 
-    call_args = ('a', )
-    call_kwargs = {'b': 'c'}
+    call_args = ("a",)
+    call_kwargs = {"b": "c"}
 
     call_res = func(*call_args, **call_kwargs)
 
     exp_msg = LOG_CALL_FMT_STR.format(
-        name='func',
-        args=call_args,
-        kwargs=call_kwargs,
-        result=call_res
+        name="func", args=call_args, kwargs=call_kwargs, result=call_res
     )
 
     exp_logger.debug.assert_called_once_with(exp_msg)
@@ -928,28 +941,28 @@ class TestMemoization:
 
     # (args, kwargs)
     memoizable_calls = (
-        (('a', 'b'), {'c': 'd'}),
-        ((['a', 'b', 'c'],), {'c': 'd'}),
-        ((lambda x: 'foo',), {'c': lambda y: 'bar'}),
-        (({'a': 'a'},), {'c': 'd'}),
-        ((type(str('A'), (object,), {})(),), {}),
+        (("a", "b"), {"c": "d"}),
+        ((["a", "b", "c"],), {"c": "d"}),
+        ((lambda x: "foo",), {"c": lambda y: "bar"}),
+        (({"a": "a"},), {"c": "d"}),
+        ((type(str("A"), (object,), {})(),), {}),
         ((), {}),
         ((1, 2, 3), {}),
     )
 
-    @pytest.mark.parametrize('args, kwargs', memoizable_calls)
+    @pytest.mark.parametrize("args, kwargs", memoizable_calls)
     def test_memoize_basic(self, args, kwargs):
         """Test basic use of the memoize decorator"""
-        tracker = Mock(return_value='foo')
+        tracker = Mock(return_value="foo")
 
         @memoize()
         def func(*args, **kwargs):
             return tracker(args, kwargs)
 
-        assert func(*args, **kwargs) == 'foo'
+        assert func(*args, **kwargs) == "foo"
         tracker.assert_called_once_with(args, kwargs)
 
-        assert func(*args, **kwargs) == 'foo'
+        assert func(*args, **kwargs) == "foo"
         assert len(tracker.mock_calls) == 1
 
     def test_memoize_lru(self):

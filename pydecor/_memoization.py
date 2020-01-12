@@ -3,10 +3,7 @@
 Required functionality for the memoization function
 """
 
-__all__ = (
-    'convert_to_hashable',
-    'hashable',
-)
+__all__ = ("convert_to_hashable", "hashable")
 
 import dill as pickle
 

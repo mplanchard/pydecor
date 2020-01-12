@@ -170,24 +170,28 @@ class TestExport:
     def test_imported_module_static_no_all(self):
         """A module present in imports is manipulated correctly."""
         from .exports import no_all
+
         assert no_all.__all__ == ["exported"]  # pylint: disable=no-member
 
     @pytest.mark.usefixtures("reset_modules")
     def test_imported_module_static_list_all(self):
         """A list __all__ is appended to."""
         from .exports import list_all
+
         assert list_all.__all__ == ["first", "exported"]
 
     @pytest.mark.usefixtures("reset_modules")
     def test_imported_module_static_tuple_all(self):
         """A tuple __all__ is replaced with a new tuple."""
         from .exports import tuple_all
+
         assert tuple_all.__all__ == ("first", "exported")
 
     @pytest.mark.usefixtures("reset_modules")
     def test_imported_module_static_class_export(self):
         """Classes may also be exported."""
         from .exports import class_export
+
         # pylint: disable=no-member
         assert class_export.__all__ == ["Exported"]
 
@@ -195,6 +199,7 @@ class TestExport:
     def test_imported_module_static_multi_export(self):
         """Multiple items may be exported."""
         from .exports import multi_export
+
         # pylint: disable=no-member
         assert multi_export.__all__ == ["Exported", "exported"]
 
@@ -290,19 +295,22 @@ class TestExport:
             exec(module_code, module.__dict__)
 
     @pytest.mark.usefixtures("reset_modules")
-    @pytest.mark.parametrize("value", (
-        "lambda: None",
-        "'foo'",
-        "12",
-        "{}",
-        "[]",
-        "()",
-        "set()",
-        "None",
-        "False",
-        "range(5)",
-        "iter(())",
-    ))
+    @pytest.mark.parametrize(
+        "value",
+        (
+            "lambda: None",
+            "'foo'",
+            "12",
+            "{}",
+            "[]",
+            "()",
+            "set()",
+            "None",
+            "False",
+            "range(5)",
+            "iter(())",
+        ),
+    )
     def test_export_failure_inline_expression(self, value):
         """Inline expressions are not valid input."""
         # In actual import machinery, the module is added to sys.modules

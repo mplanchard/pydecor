@@ -17,26 +17,26 @@ import pytest
 
 from pydecor.decorators import Decorated
 from pydecor.constants import LOG_CALL_FMT_STR
-from pydecor.functions import (
-    intercept,
-    log_call
+from pydecor.functions import intercept, log_call
+
+
+@pytest.mark.parametrize(
+    "raises, catch, reraise, include_handler",
+    [
+        (Exception, Exception, ValueError, False),
+        (Exception, Exception, ValueError, True),
+        (None, Exception, ValueError, False),
+        (None, Exception, ValueError, True),
+        (Exception, Exception, None, False),
+        (Exception, Exception, None, True),
+        (Exception, RuntimeError, ValueError, False),  # won't catch
+        (Exception, RuntimeError, ValueError, True),  # won't catch
+    ],
 )
-
-
-@pytest.mark.parametrize('raises, catch, reraise, include_handler', [
-    (Exception, Exception, ValueError, False),
-    (Exception, Exception, ValueError, True),
-    (None, Exception, ValueError, False),
-    (None, Exception, ValueError, True),
-    (Exception, Exception, None, False),
-    (Exception, Exception, None, True),
-    (Exception, RuntimeError, ValueError, False),  # won't catch
-    (Exception, RuntimeError, ValueError, True),  # won't catch
-])
 def test_interceptor(raises, catch, reraise, include_handler):
     """Test the intercept function"""
     wrapped = Mock()
-    wrapped.__name__ = 'intercept_mock'
+    wrapped.__name__ = "intercept_mock"
     if raises is not None:
         wrapped.side_effect = raises
 
@@ -44,8 +44,9 @@ def test_interceptor(raises, catch, reraise, include_handler):
 
     decorated = Decorated(wrapped, (), {})
 
-    fn = partial(intercept, decorated, catch=catch, reraise=reraise,
-                 handler=handler)
+    fn = partial(
+        intercept, decorated, catch=catch, reraise=reraise, handler=handler
+    )
 
     will_catch = raises and issubclass(raises, catch)
 
@@ -74,20 +75,17 @@ def test_log_call():
     exp_logger.debug = Mock()
 
     def func(*args, **kwargs):
-        return 'foo'
+        return "foo"
 
-    call_args = ('a', )
-    call_kwargs = {'b': 'c'}
+    call_args = ("a",)
+    call_kwargs = {"b": "c"}
     decorated = Decorated(func, call_args, call_kwargs)
     call_res = decorated(*decorated.args, **decorated.kwargs)
 
-    log_call(decorated, level='debug')
+    log_call(decorated, level="debug")
 
     exp_msg = LOG_CALL_FMT_STR.format(
-        name='func',
-        args=call_args,
-        kwargs=call_kwargs,
-        result=call_res
+        name="func", args=call_args, kwargs=call_kwargs, result=call_res
     )
 
     exp_logger.debug.assert_called_once_with(exp_msg)

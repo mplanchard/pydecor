@@ -6,10 +6,7 @@ Functions to use for decorator construction
 from __future__ import absolute_import, unicode_literals
 
 
-__all__ = (
-    'intercept',
-    'log_call',
-)
+__all__ = ("intercept", "log_call")
 
 
 from inspect import getmodule
@@ -25,8 +22,14 @@ from ._memoization import convert_to_hashable
 PY2 = version_info < (3, 0)
 
 
-def intercept(decorated, catch=Exception, reraise=None, handler=None,
-              err_msg=None, include_context=False):
+def intercept(
+    decorated,
+    catch=Exception,
+    reraise=None,
+    handler=None,
+    err_msg=None,
+    include_context=False,
+):
     """Intercept an error and either re-raise, handle, or both
 
     Designed to be called via the ``instead`` decorator.
@@ -69,8 +72,7 @@ def intercept(decorated, catch=Exception, reraise=None, handler=None,
             raise_from(new_exc, context)
 
 
-def log_call(decorated, logger=None, level='info',
-             format_str=LOG_CALL_FMT_STR):
+def log_call(decorated, logger=None, level="info", format_str=LOG_CALL_FMT_STR):
     """Log the parameters & results of a function call
 
     Designed to be called via the ``after`` decorator with
@@ -91,7 +93,7 @@ def log_call(decorated, logger=None, level='info',
         name=decorated.wrapped.__name__,
         args=decorated.args,
         kwargs=decorated.kwargs,
-        result=decorated.result
+        result=decorated.result,
     )
     log_fn(msg)
 

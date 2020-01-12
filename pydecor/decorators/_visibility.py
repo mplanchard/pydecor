@@ -3,9 +3,7 @@
 Decorators controlling visibility of entities in a Python module.
 """
 
-__all__ = (
-    'export',
-)
+__all__ = ("export",)
 __api__ = __all__
 
 import sys
@@ -83,7 +81,7 @@ def export(entity):
                 "it is in the import path before calling export()."
             ).format(entity.__module__)
         )
-    if hasattr(module, '__all__'):
+    if hasattr(module, "__all__"):
         if entity.__name__ not in module.__all__:
             module.__all__ = module.__all__.__class__(
                 (*module.__all__, entity.__name__)

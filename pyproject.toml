@@ -15,9 +15,11 @@ exclude =  '''
     | \.mypy_cache
     | \.venv
     | \.vscode
+    | \.tox
     | _build
     | build
     | dist
+    | venv
   )
 )
 '''

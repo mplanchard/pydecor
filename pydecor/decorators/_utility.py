@@ -6,7 +6,7 @@ Private interface utilities for PyDecor
 from __future__ import absolute_import, unicode_literals
 
 
-__all__ = ('ClassWrapper', )
+__all__ = ("ClassWrapper",)
 
 
 from functools import partial, wraps
@@ -102,6 +102,7 @@ class ClassWrapper(object):
                 pass
 
     """
+
     __wrapped__ = None
     __decorator__ = None
     __decoropts__ = None
@@ -111,21 +112,21 @@ class ClassWrapper(object):
 
     def __getattribute__(self, item):
 
-        if item in ('__wrapped__', '__decorator__', '__decoropts__'):
+        if item in ("__wrapped__", "__decorator__", "__decoropts__"):
             return object.__getattribute__(self, item)
 
-        wrapped = object.__getattribute__(self, '__wrapped__')
+        wrapped = object.__getattribute__(self, "__wrapped__")
         attr = getattr(wrapped, item)
 
         if attr is None:
             raise AttributeError
 
         if ismethod(attr) or isfunction(attr):
-            cls = object.__getattribute__(self, '__class__')
-            decoropts = object.__getattribute__(cls, '__decoropts__')
-            decor = object.__getattribute__(cls, '__decorator__')
+            cls = object.__getattribute__(self, "__class__")
+            decoropts = object.__getattribute__(cls, "__decoropts__")
+            decor = object.__getattribute__(cls, "__decorator__")
 
-            if decoropts['instance_methods_only']:
+            if decoropts["instance_methods_only"]:
                 cls_attr = object.__getattribute__(cls, item)
                 if type(cls_attr) is classmethod:
                     return attr
@@ -148,7 +149,7 @@ class ClassWrapper(object):
         attrs = {}
 
         for k, v in wrapped.__dict__.items():
-            if not k.startswith('__'):
+            if not k.startswith("__"):
                 if not instance_methods_only:
                     if type(v) is classmethod:
                         attrs[k] = partial(decorator(v.__func__), wrapped)
@@ -166,11 +167,11 @@ class ClassWrapper(object):
 
         attrs.update(
             {
-                '__wrapped__': wrapped,
-                '__decorator__': decorator,
-                '__decoropts__': {
-                    'instance_methods_only': instance_methods_only
-                }
+                "__wrapped__": wrapped,
+                "__decorator__": decorator,
+                "__decoropts__": {
+                    "instance_methods_only": instance_methods_only
+                },
             }
         )
 
@@ -185,13 +186,13 @@ class ClassWrapper(object):
             the decorator to apply to the
             functions and methods of the wrapped class
         """
-        name = 'Wrapped{}'.format(wrapped.__name__)
+        name = "Wrapped{}".format(wrapped.__name__)
         if PY2:
             name = str(name)
 
         return type(
             name,
-            (cls, ),
+            (cls,),
             # {'__decorator__': decorator}
-            cls._get_class_attrs(wrapped, decorator, instance_methods_only)
+            cls._get_class_attrs(wrapped, decorator, instance_methods_only),
         )
