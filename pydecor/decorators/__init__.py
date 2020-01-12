@@ -14,7 +14,9 @@ __all__ = (
     'intercept',
     'log_call',
     'memoize',
+    'export'
 )
 
 from .generic import *
 from .ready_to_wear import *
+from .visibility import *
