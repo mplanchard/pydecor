@@ -161,7 +161,7 @@ def before(
     unpack_extras=True,
     extras_key="extras",
     _use_future_syntax=False,
-    **extras,
+    **extras
 ):
     """Specify a callable to be run before the decorated resource
 
@@ -312,7 +312,7 @@ def after(
     unpack_extras=True,
     extras_key="extras",
     _use_future_syntax=False,
-    **extras,
+    **extras
 ):
     """Specify a callable to be run after the decorated resource
 
@@ -477,7 +477,7 @@ def instead(
     unpack_extras=True,
     extras_key="extras",
     _use_future_syntax=False,
-    **extras,
+    **extras
 ):
     """Specify a callable to be run in hte place of the decorated resource
 
@@ -611,7 +611,7 @@ def decorate(
     unpack_extras=True,
     _use_future_syntax=False,
     extras_key="extras",
-    **extras,
+    **extras
 ):
     """A decorator that combines before, after, and instead decoration
 
@@ -792,7 +792,7 @@ def construct_decorator(
     unpack_extras=True,
     _use_future_syntax=False,
     extras_key="extras",
-    **extras,
+    **extras
 ):
     """Return a custom decorator
 
@@ -822,7 +822,7 @@ def construct_decorator(
         unpack_extras=unpack_extras,
         extras_key=extras_key,
         _use_future_syntax=_use_future_syntax,
-        **extras,
+        **extras
     )
 
 
