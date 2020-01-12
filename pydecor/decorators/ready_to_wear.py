@@ -8,6 +8,7 @@ from __future__ import absolute_import, unicode_literals
 
 
 __all__ = (
+    'export',
     'intercept',
     'log_call',
     'memoize',
@@ -21,6 +22,7 @@ from pydecor.constants import LOG_CALL_FMT_STR
 from pydecor.caches import LRUCache
 
 from .generic import instead, after
+from ._visibility import export
 
 
 log = getLogger(__name__)
@@ -28,7 +30,7 @@ log = getLogger(__name__)
 
 def intercept(catch=Exception, reraise=None, handler=None, err_msg=None,
               include_context=False):
-    """Intercept an exception and either re-raise, handle, or both
+    """Intercept an exception and either re-raise, handle, or both.
 
     Example:
 

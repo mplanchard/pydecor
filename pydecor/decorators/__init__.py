@@ -19,4 +19,3 @@ __all__ = (
 
 from .generic import *
 from .ready_to_wear import *
-from .visibility import *
