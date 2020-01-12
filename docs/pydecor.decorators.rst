@@ -9,6 +9,7 @@ Submodules
    pydecor.decorators._utility
    pydecor.decorators.generic
    pydecor.decorators.ready_to_wear
+   pydecor.decorators.visibility
 
 Module contents
 ---------------
