@@ -14,3 +14,12 @@ install:
 
 script:
   - tox
+
+deploy:
+  provider: pypi
+  user: "__token__"
+  password: $PYPI_TOKEN
+  distributions: "sdist bdist_wheel"
+  skip_existing: true
+  on:
+    tags: true
