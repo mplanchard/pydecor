@@ -89,10 +89,6 @@ test: venv
 tox: venv
 	TOXENV=$(TOXENV) tox
 
-test-3.5:
-	docker run --rm -it --mount type=bind,source="$(PWD)",target="/src" -w "/src" \
-		python:3.5 bash -c "make clean && pip install -e .[dev] && $(TEST); make clean"
-
 test-3.6:
 	docker run --rm -it --mount type=bind,source="$(PWD)",target="/src" -w "/src" \
 		python:3.6 bash -c "make clean && pip install -e .[dev] && $(TEST); make clean"
