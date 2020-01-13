@@ -337,7 +337,28 @@ Generics
 * ``construct_decorator`` - specify functions to be run ``before``, ``after``,
   or ``instead`` of decorated functions. Returns a reusable decorator.
 
-Every generic decorator takes any number of keyword arguments, which will be
+The callable passed to a generic decorator is expected to handle at least one
+positional argument, which will be an instance of `Decorated`. `Decorated`
+objects provide the following interface:
+
+**Attributes:**
+
+* `args`: a tuple of any positional arguments with which the decorated
+  callable was called
+* `kwargs`: a dict of any keyword arguments with which the decorated
+  callable was called
+* `wrapped`: a reference to the decorated callable
+* `result`: when the _wrapped_ function has been called, its return value is
+  stored here
+
+**Methods**
+
+* `__call__(*args, **kwargs)`: a shortcut to
+  `decorated.wrapped(*args, **kwargs)`, calling an instance of `Decorated`
+  calls the underlying wrapped callable. The result of this call (or a
+  direct call to `decorated.wrapped()`) will set the `result` attribute.
+
+Every generic decorator may take any number of keyword arguments, which will be
 passed directly into the provided callable, so, running the code below prints
 "red":
 
