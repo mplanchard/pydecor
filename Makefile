@@ -6,6 +6,8 @@ SRC_FILES = *.py $(PKG_DIR) $(TEST_DIR)
 TEST = pytest \
 	--cov-config=setup.cfg \
 	--cov=$(PKG_NAME) \
+	--cov-report=term \
+	--cov-report=xml:coverage.xml \
 	--doctest-modules \
 	$(PKG_DIR) \
 	$(TEST_DIR)
@@ -76,10 +78,10 @@ fmt: venv
 
 lint: venv
 	$(VENV) black --check $(SRC_FILES)
+	$(VENV) flake8 $(SRC_FILES)
+	$(VENV) mypy $(SRC_FILES)
+	$(VENV) pylint --errors-only $(SRC_FILES)
 	# $(VENV) pydocstyle $(SRC_FILES)
-	# $(VENV) flake8 $(SRC_FILES)
-	# $(VENV) pylint --errors-only $(SRC_FILES)
-	# $(VENV) mypy $(SRC_FILES)
 
 setup: venv-clean venv
 
@@ -89,24 +91,20 @@ test: venv
 tox: venv
 	TOXENV=$(TOXENV) tox
 
-test-3.5:
-	docker run --rm -it --mount type=bind,source="$(PWD)",target="/src" -w "/src" \
-		python:3.5 bash -c "make clean && pip install -e .[dev] && $(TEST); make clean"
-
-test-3.6:
+test-docker-3.6:
 	docker run --rm -it --mount type=bind,source="$(PWD)",target="/src" -w "/src" \
 		python:3.6 bash -c "make clean && pip install -e .[dev] && $(TEST); make clean"
 
-test-3.7:
+test-docker-3.7:
 	docker run --rm -it --mount type=bind,source="$(PWD)",target="/src" -w "/src" \
 		python:3.7 bash -c "make clean && pip install -e .[dev] && $(TEST); make clean"
 
-test-3.8:
+test-docker-3.8:
 	docker run --rm -it --mount type=bind,source="$(PWD)",target="/src" -w "/src" \
 		python:3.8 bash -c "make clean && pip install -e .[dev] && $(TEST); make clean"
 
-test-pypy3:
+test-docker-pypy:
 	docker run --rm -it --mount type=bind,source="$(PWD)",target="/src" -w "/src" \
 		pypy:3 bash -c "make clean && pip install -e .[dev] && $(TEST); make clean"
 
-test-all-versions: test-3.5 test-3.6 test-3.7 test-3.8 test-pypy3
+test-docker: test-docker-3.6 test-docker-3.7 test-docker-3.8 test-docker-pypy3

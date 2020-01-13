@@ -9,7 +9,7 @@ from __future__ import absolute_import, unicode_literals
 __all__ = ("ClassWrapper",)
 
 
-from functools import partial, wraps
+from functools import partial
 from inspect import isclass
 from logging import getLogger
 from sys import version_info
@@ -24,7 +24,7 @@ PY2 = version_info < (3, 0)
 
 
 def get_fn_args(decorated, args):
-    """Strip "self" and "cls" variables from args
+    """Strip "self" and "cls" variables from args.
 
     For now, this avoids assuming that the "self" variable is called
     "self" on instance methods, although if this winds up being
@@ -33,7 +33,9 @@ def get_fn_args(decorated, args):
     isn't called "self" won't have their "self" argument stripped.
     """
     fn_args = args
-    decor_name = decorated.__name__
+    decor_name = (
+        decorated.__name__ if hasattr(decorated, "__name__") else str(decorated)
+    )
 
     # Check if the wrapped function is an attribute on args[0]
     if args and decor_name in dir(args[0]):
@@ -108,7 +110,7 @@ class ClassWrapper(object):
     __decoropts__ = None
 
     def __init__(self, *args, **kwargs):
-        self.__wrapped__ = self.__wrapped__(*args, **kwargs)
+        self.__wrapped__ = self.__wrapped__(*args, **kwargs)  # type: ignore
 
     def __getattribute__(self, item):
 
@@ -169,7 +171,7 @@ class ClassWrapper(object):
             {
                 "__wrapped__": wrapped,
                 "__decorator__": decorator,
-                "__decoropts__": {
+                "__decoropts__": {  # type: ignore
                     "instance_methods_only": instance_methods_only
                 },
             }

@@ -72,7 +72,7 @@ def test_interceptor(raises, catch, reraise, include_handler):
 def test_log_call():
     """Test automatic logging"""
     exp_logger = getLogger(__name__)
-    exp_logger.debug = Mock()
+    exp_logger.debug = Mock()  # type: ignore
 
     def func(*args, **kwargs):
         return "foo"
@@ -88,4 +88,4 @@ def test_log_call():
         name="func", args=call_args, kwargs=call_kwargs, result=call_res
     )
 
-    exp_logger.debug.assert_called_once_with(exp_msg)
+    exp_logger.debug.assert_called_once_with(exp_msg)  # type: ignore

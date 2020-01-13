@@ -15,14 +15,6 @@ jobs:
     - stage: lint
       script: make lint
       python: "3.8"
-    # For some reason, the py35 environment in Travis consistently gets
-    # killed when running `make test`, but not when running tox directly.
-    # So, we manually specify the test run for that environment.
-    - stage: test
-      script:
-        - pip install tox
-        - tox -e py35
-      python: "3.5"
     - stage: deploy
       script: skip
       python: "3.8"

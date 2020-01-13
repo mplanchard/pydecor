@@ -3,6 +3,7 @@
 setup module for ihiji_schemas
 """
 
+import typing as t
 from os.path import dirname, join, realpath
 from setuptools import setup, find_packages
 from sys import version_info
@@ -30,10 +31,10 @@ KEYWORDS = ["decorators", "python3"]
 
 
 PACKAGE_DEPENDENCIES = []
-SETUP_DEPENDENCIES = []
+SETUP_DEPENDENCIES: t.List[str] = []
 TEST_DEPENDENCIES = []
 
-ENTRY_POINTS = {}
+ENTRY_POINTS: dict = {}
 
 
 with open(join(fdir, "requirements.txt")) as reqfile:
@@ -76,7 +77,10 @@ CLASSIFIERS = [
     "Operating System :: POSIX :: Linux",
     # "Programming Language :: Python",
     "Programming Language :: Python :: 3 :: Only",
-    # 'Programming Language :: Python :: Implementation :: PyPy',
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
 
@@ -100,6 +104,7 @@ setup(
     keywords=KEYWORDS,
     package_dir={"": "src"},
     packages=find_packages(where="src"),
+    python_requires=">=3.6",
     install_requires=PACKAGE_DEPENDENCIES,
     setup_requires=SETUP_DEPENDENCIES,
     tests_require=TEST_DEPENDENCIES,

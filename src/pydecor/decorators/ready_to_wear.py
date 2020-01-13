@@ -86,7 +86,6 @@ def intercept(
     """
     return instead(
         functions.intercept,
-        _use_future_syntax=True,
         catch=catch,
         reraise=reraise,
         handler=handler,
@@ -140,11 +139,7 @@ def log_call(logger=None, level="info", format_str=LOG_CALL_FMT_STR):
     :rtype: DecoratorType
     """
     return after(
-        functions.log_call,
-        _use_future_syntax=True,
-        logger=logger,
-        level=level,
-        format_str=format_str,
+        functions.log_call, logger=logger, level=level, format_str=format_str,
     )
 
 
@@ -171,6 +166,4 @@ def memoize(keep=0, cache_class=LRUCache):
 
     :rtype: DecoratorType
     """
-    return instead(
-        functions.memoize, _use_future_syntax=True, memo=cache_class(keep)
-    )
+    return instead(functions.memoize, memo=cache_class(keep))

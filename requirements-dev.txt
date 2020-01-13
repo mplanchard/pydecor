@@ -1,7 +1,14 @@
 -r requirements.txt
+
+# Linting/dev requirements: these are not necessary for Pypy, b/c we don't
+# run linting with it, and it's a pain to install things on in CI.
 black;python_version>"3.5" and implementation_name=="cpython"
+flake8;implementation_name=="cpython"
+ipdb;implementation_name=="cpython"
+mypy;implementation_name=="cpython"
+pylint;implementation_name=="cpython"
+
 coverage
-ipdb
 mock;python_version<"3.0"
 pytest
 pytest-cov

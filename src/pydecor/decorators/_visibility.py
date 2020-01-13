@@ -7,9 +7,13 @@ __all__ = ("export",)
 __api__ = __all__
 
 import sys
+import typing as t
 
 
-def export(entity):
+T = t.TypeVar("T", bound=t.Callable)
+
+
+def export(entity: T) -> T:
     """Register the given function or class as publicly accessible in a module.
 
     Creates or updates the `__all__` attribute in the module in which the
@@ -82,11 +86,11 @@ def export(entity):
             ).format(entity.__module__)
         )
     if hasattr(module, "__all__"):
-        if entity.__name__ not in module.__all__:
-            module.__all__ = module.__all__.__class__(
-                (*module.__all__, entity.__name__)
+        if entity.__name__ not in module.__all__:  # type: ignore
+            module.__all__ = module.__all__.__class__(  # type: ignore
+                (*module.__all__, entity.__name__)  # type: ignore
             )
     else:
-        module.__all__ = [entity.__name__]
+        module.__all__ = [entity.__name__]  # type: ignore
 
     return entity
