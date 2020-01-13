@@ -77,7 +77,10 @@ CLASSIFIERS = [
     "Operating System :: POSIX :: Linux",
     # "Programming Language :: Python",
     "Programming Language :: Python :: 3 :: Only",
-    # 'Programming Language :: Python :: Implementation :: PyPy',
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
 
@@ -101,6 +104,7 @@ setup(
     keywords=KEYWORDS,
     package_dir={"": "src"},
     packages=find_packages(where="src"),
+    python_requires=">=3.6",
     install_requires=PACKAGE_DEPENDENCIES,
     setup_requires=SETUP_DEPENDENCIES,
     tests_require=TEST_DEPENDENCIES,
