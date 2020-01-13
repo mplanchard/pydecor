@@ -5,15 +5,13 @@ Tests for the decorators module
 
 from __future__ import absolute_import, unicode_literals
 
-try:
-    from unittest.mock import Mock, call
-except ImportError:
-    from mock import Mock, call
 
+import typing as t
 from logging import getLogger
 from inspect import isfunction
 from sys import version_info
 from time import sleep
+from unittest.mock import Mock, call
 
 import pytest
 
@@ -25,481 +23,593 @@ from pydecor.decorators import (
     log_call,
     construct_decorator,
     decorate,
+    Decorated,
     instead,
     intercept,
     memoize,
 )
 
 
-PY2 = version_info < (3, 0)
-
-
-# Common parameters for testing decorators
-# ret, kwargs, fn_args, fn_kwargs
-# - ret is the return value of the function passed to the decorator
-# - kwargs are the kwargs passed to the decoration call
-# - fn_args are the args passed to the function
-# - fn_kwargs are the kwargs passed to the function
-#
-# Each decorator type has a helper method, below, which determines what
-# the expected call to the passed function will look like.
-# Decorator-specific call logic is then tested in individual tests.
-#
-_base_params = (
-    (None, {}, (), {}),
-    ((("a",), {"b": "c"}), {}, ("d",), {"e": "f"}),
-    (None, {"pow": "bang"}, (), {}),
-    ((("a",), {"b": "c"}), {"pow": "bang"}, (), {}),
-    (None, {"pow": "bang", "bop": "smack"}, (), {}),
-    (None, {"pass_decorated": True}, (), {}),
-    ((("a",), {"b": "c"}), {"pass_decorated": True}, (), {}),
-    (None, {"pass_params": False}, (), {}),
-    ((("a",), {"b": "c"}), {"pass_params": False}, (), {}),
-    (None, {"pass_params": False, "pass_decorated": True}, (), {}),
-    (None, {"pass_params": False}, ("a",), {"b": "c"}),
-    (None, {"unpack_extras": False}, (), {}),
-    ((("a",), {"b": "c"}), {"unpack_extras": False}, (), {}),
-    (None, {"unpack_extras": False, "pow": "bang"}, (), {}),
-    (None, {"unpack_extras": False, "extras_key": "boo", "k": "d"}, (), {}),
-    (None, {}, (), {}),
-    ((("a",), {"b": "c"}), {}, ("a",), {"b": "c"}),
-    (None, {"pass_params": False}, (), {}),
-    (None, {"pass_params": False, "pass_decorated": False}, (), {}),
-    (None, {"wowee": "zappo"}, (), {}),
-    (None, {"wowee": "zappo", "extras_key": "zarblock"}, (), {}),
-    (
-        None,
-        {"wowee": "zappo", "extras_key": "zarblock", "unpack_extras": False},
-        (),
-        {},
-    ),
-)
-
-
-base_params = []
-for i in _base_params:
-    base_params.append((before,) + i)
-    base_params.append((after,) + i)
-    base_params.append((instead,) + i)
-
-
-# Extra parameter combinations mostly useful when testing class decoration
-_class_params = (
-    (None, {"implicit_method_decoration": False}, (), {}),
-    (None, {"instance_methods_only": True}, (), {}),
-    (
-        None,
-        {"implicit_method_decoration": False, "instance_methods_only": True},
-        (),
-        {},
-    ),
-    (
-        None,
-        {"implicit_method_decoration": True, "instance_methods_only": False},
-        (),
-        {},
-    ),
-    ((("a",), {"b": "c"}), {"implicit_method_decoration": False}, (), {}),
-    ((("a",), {"b": "c"}), {"instance_methods_only": True}, (), {}),
-    (
-        (("a",), {"b": "c"}),
-        {"implicit_method_decoration": False, "instance_methods_only": True},
-        (),
-        {},
-    ),
-    (
-        (("a",), {"b": "c"}),
-        {"implicit_method_decoration": True, "instance_methods_only": False},
-        (),
-        {},
-    ),
-)
-
-class_params = []
-for i in _class_params:
-    class_params.append((before,) + i)
-    class_params.append((after,) + i)
-    class_params.append((instead,) + i)
-
-class_params.extend(base_params)
-
-
-def func_sig_before(kwargs, fn_args, fn_kwargs, decorated):
-    """Return the expected signature for the decorator func"""
-    exp_args = ()
-
-    if kwargs.get("pass_params", False):
-        exp_args += (fn_args, fn_kwargs)
-
-    if kwargs.get("pass_decorated", False):
-        exp_args += (decorated,)
+class TestBefore:
+    """Test generic decorators."""
 
-    extras = {}
+    def test_before_no_ret(self):
+        """A before decorator with no return does not replace inbound args."""
 
-    for k, v in kwargs.items():
-        if k not in instead.__code__.co_varnames:
-            extras[k] = v
+        tracker = []
 
-    exp_kwargs = {}
+        def to_call_before(decorated: Decorated) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
 
-    if kwargs.get("unpack_extras", True):
-        exp_kwargs = extras
-    else:
-        exp_kwargs[kwargs.get("extras_key", "extras")] = extras
+        @before(to_call_before)
+        def to_call(*args):
+            tracker.append({2: args})
 
-    return exp_args, exp_kwargs
+        to_call(1, 2)
 
+        assert len(tracker) == 2
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {2: (1, 2)}
 
-def func_sig_after(kwargs, fn_args, fn_kwargs, decorated, decorated_ret):
-    """Return the expected signature for the decorator func"""
-    exp_args = ()
+    def test_before_ret(self):
+        """A before decorator's return, if present, replaces inbound args."""
 
-    if kwargs.get("pass_result", True):
-        exp_args += (decorated_ret,)
+        tracker = []
 
-    if kwargs.get("pass_params", False):
-        exp_args += (fn_args, fn_kwargs)
+        def to_call_before(decorated: Decorated) -> t.Tuple[tuple, dict]:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
+            return (3, 4), {}
 
-    if kwargs.get("pass_decorated", False):
-        exp_args += (decorated,)
+        @before(to_call_before)
+        def to_call(*args):
+            tracker.append({2: args})
 
-    extras = {}
+        to_call(1, 2)
 
-    for k, v in kwargs.items():
-        if k not in instead.__code__.co_varnames:
-            extras[k] = v
+        assert len(tracker) == 2
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {2: (3, 4)}
 
-    exp_kwargs = {}
+    def test_before_receives_kwargs(self):
+        """Any kwargs are passed to the callable."""
 
-    if kwargs.get("unpack_extras", True):
-        exp_kwargs = extras
-    else:
-        exp_kwargs[kwargs.get("extras_key", "extras")] = extras
+        tracker = []
 
-    return exp_args, exp_kwargs
+        def to_call_before(decorated: Decorated, extra=None) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: (decorated.args, extra)})
 
+        @before(to_call_before, extra="read_all_about_it")
+        def to_call(*args):
+            tracker.append({2: args})
 
-def func_sig_instead(kwargs, fn_args, fn_kwargs, decorated):
-    """Return the expected signature for the decorator func"""
-    exp_args = ()
+        to_call(1, 2)
 
-    if kwargs.get("pass_params", True):
-        exp_args += (fn_args, fn_kwargs)
+        assert len(tracker) == 2
+        assert tracker[0] == {1: ((1, 2), "read_all_about_it")}
+        assert tracker[1] == {2: (1, 2)}
 
-    if kwargs.get("pass_decorated", True):
-        exp_args += (decorated,)
+    def test_before_implicit_instancemethod(self):
+        """Before implicitly decorates instancemethods."""
 
-    extras = {}
+        tracker = []
 
-    for k, v in kwargs.items():
-        if k not in instead.__code__.co_varnames:
-            extras[k] = v
+        def to_call_before(decorated: Decorated) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
 
-    exp_kwargs = {}
+        @before(to_call_before)
+        class _ToDecorate:
+            def to_call(self, *args):
+                tracker.append({2: args})
 
-    if kwargs.get("unpack_extras", True):
-        exp_kwargs = extras
-    else:
-        exp_kwargs[kwargs.get("extras_key", "extras")] = extras
+        _ToDecorate().to_call(1, 2)
 
-    return exp_args, exp_kwargs
+        assert len(tracker) == 2
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {2: (1, 2)}
 
+    def test_before_implicit_classmethod(self):
+        """Before implicitly decorates classmethods."""
 
-func_sig_map = {
-    before: func_sig_before,
-    "before": func_sig_before,
-    after: func_sig_after,
-    "after": func_sig_after,
-    instead: func_sig_instead,
-    "instead": func_sig_instead,
-}
+        tracker = []
 
+        def to_call_before(decorated: Decorated) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
 
-@pytest.mark.parametrize("decor, ret, kwargs, fn_args, fn_kwargs", base_params)
-def test_function_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
-    """Test the decoration of functions
+        @before(to_call_before)
+        class _ToDecorate:
+            @classmethod
+            def to_call(cls, *args):
+                tracker.append({2: args})
 
-    :param decor: the decorator to be used
-    :param ret: the return value of the function to be passed to the
-        decorator
-    :param kwargs: the keyword arguments to be passed to the decorator
-    :param fn_args: the arguments with which the decorated function
-        will be called
-    :param fn_kwargs: the kwargs with which the decorated function
-        will be called
-    """
-    decorated_mock_return = "billyrubin"
+        _ToDecorate().to_call(1, 2)
 
-    func_mock = Mock(return_value=ret)
-    decorated_mock = Mock(return_value=decorated_mock_return)
+        assert len(tracker) == 2
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {2: (1, 2)}
 
-    func_mock.__name__ = str("func_mock")
-    decorated_mock.__name__ = str("decorated_mock")
+    def test_before_implicit_staticmethod(self):
+        """Before implicitly decorates staticmethods."""
 
-    fn = decor(func_mock, **kwargs)(decorated_mock)
-    fn_ret = fn(*fn_args, **fn_kwargs)
+        tracker = []
 
-    fn_sig_func = func_sig_map[decor]
-    fn_sig_args = [kwargs, fn_args, fn_kwargs, decorated_mock]
-    if decor is after:
-        fn_sig_args.append(decorated_mock_return)
+        def to_call_before(decorated: Decorated) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
 
-    exp_args, exp_kwargs = fn_sig_func(*fn_sig_args)
+        @before(to_call_before)
+        class _ToDecorate:
+            @staticmethod
+            def to_call(*args):
+                tracker.append({2: args})
 
-    func_mock.assert_called_once_with(*exp_args, **exp_kwargs)
+        _ToDecorate().to_call(1, 2)
 
-    if decor is before:
-        if ret is not None:
-            assert len(ret) == 2
-            args, kwargs = ret
-            decorated_mock.assert_called_once_with(*args, **kwargs)
-        else:
-            decorated_mock.assert_called_once_with(*fn_args, **fn_kwargs)
+        assert len(tracker) == 2
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {2: (1, 2)}
 
-        assert fn_ret == decorated_mock_return
+    def test_before_implicit_instancemethod_instace_only(self):
+        """Instance methods can be decorated in isolation."""
 
-    elif decor is after:
-        decorated_mock.assert_called_once_with(*fn_args, **fn_kwargs)
+        tracker = []
 
-        if ret is not None:
-            assert fn_ret == ret
-        else:
-            assert fn_ret == decorated_mock_return
+        def to_call_before(decorated: Decorated) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
 
-    elif decor is instead:
-        decorated_mock.assert_not_called()
-        assert ret == fn_ret
+        @before(to_call_before, instance_methods_only=True)
+        class _ToDecorate:
+            def to_call(self, *args):
+                tracker.append({2: args})
 
-    else:
-        assert False, "Unexpected decorator???"
+        _ToDecorate().to_call(1, 2)
 
+        assert len(tracker) == 2
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {2: (1, 2)}
 
-@pytest.mark.parametrize("decor, ret, kwargs, fn_args, fn_kwargs", class_params)
-def test_class_decoration(decor, ret, kwargs, fn_args, fn_kwargs):
-    """Test decorators when applied to a class"""
-    func_mock = Mock(return_value=ret)
-    decorated_return = "wow, what a return"
-    meth_mock = Mock(name="meth_mock", return_value=decorated_return)
-    cls_mock = Mock(name="cls_mock", return_value=decorated_return)
-    static_mock = Mock(name="static_mock", return_value=decorated_return)
+    def test_before_implicit_classmethod_instance_only(self):
+        """Instance methods can be decorated in isolation."""
 
-    @decor(func_mock, **kwargs)
-    class TheClass(object):
-        def method(self, *args, **kwargs):
-            return meth_mock(self, *args, **kwargs)
+        tracker = []
 
-        @classmethod
-        def cls(cls, *args, **kwargs):
-            return cls_mock(cls, *args, **kwargs)
+        def to_call_before(decorated: Decorated) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
 
-        @staticmethod
-        def static(*args, **kwargs):
-            return static_mock(*args, **kwargs)
+        @before(to_call_before, instance_methods_only=True)
+        class _ToDecorate:
+            @classmethod
+            def to_call(cls, *args):
+                tracker.append({2: args})
 
-    mocks = (meth_mock, cls_mock, static_mock)
+        _ToDecorate().to_call(1, 2)
 
-    for name, mock in zip(("method", "cls", "static"), mocks):
+        assert len(tracker) == 1
+        assert tracker[0] == {2: (1, 2)}
 
-        if not kwargs.get("implicit_method_decoration", True) or (
-            name != "method" and kwargs.get("instance_methods_only", False)
-        ):
-            # This functionality tested elsewhere
-            return
+    def test_before_implicit_staticmethod_instance_only(self):
+        """Instance methods can be decorated in isolation."""
 
-        theclass = TheClass()
+        tracker = []
 
-        meth = getattr(theclass, name)
-        meth_ret = meth(*fn_args, **fn_kwargs)
+        def to_call_before(decorated: Decorated) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
 
-        exp_meth_args = ()
+        @before(to_call_before, instance_methods_only=True)
+        class _ToDecorate:
+            @staticmethod
+            def to_call(*args):
+                tracker.append({2: args})
 
-        if name == "method":
-            exp_meth_args += (theclass.__wrapped__,)
-        elif name == "cls":
-            exp_meth_args += (TheClass.__wrapped__,)
+        _ToDecorate().to_call(1, 2)
 
-        exp_meth_args += fn_args
+        assert len(tracker) == 1
+        assert tracker[0] == {2: (1, 2)}
 
-        wrapped_meth = getattr(theclass.__wrapped__, name)
+    def test_before_method_decorates_class_if_not_implicit(self):
+        """WIthout implicit method decoration, the class init is decorated."""
 
-        fn_sig_func = func_sig_map[decor]
-        fn_sig_args = [kwargs, fn_args, fn_kwargs, wrapped_meth]
-        if decor is after:
-            fn_sig_args.append(decorated_return)
+        tracker = []
 
-        exp_args, exp_kwargs = fn_sig_func(*fn_sig_args)
+        def to_call_before(decorated: Decorated) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
 
-        func_mock.assert_called_once_with(*exp_args, **exp_kwargs)
-        func_mock.reset_mock()
+        @before(to_call_before, implicit_method_decoration=False)
+        class _ToDecorate:
+            def __init__(self):
+                tracker.append({0: ()})
 
-        if decor is before:
-            if ret is not None:
-                assert len(ret) == 2
-                exp_args, exp_kwargs = ret
-                if name != "static":
-                    exp_args = (exp_meth_args[0],) + exp_args
-                mock.assert_called_once_with(*exp_args, **exp_kwargs)
-            else:
-                mock.assert_called_once_with(*exp_meth_args, **fn_kwargs)
+            def to_call(self, *args):
+                tracker.append({2: args})
 
-            assert meth_ret == decorated_return
+            @classmethod
+            def to_call_cls(cls, *args):
+                tracker.append({3: args})
 
-        elif decor is after:
-            mock.assert_called_once_with(*exp_meth_args, **fn_kwargs)
+            @staticmethod
+            def to_call_static(*args):
+                tracker.append({4: args})
 
-            if ret is not None:
-                assert meth_ret == ret
-            else:
-                assert meth_ret == decorated_return
+        to_decorate = _ToDecorate()
 
-        elif decor is instead:
-            mock.assert_not_called()
-            assert meth_ret == ret
+        to_decorate.to_call(3, 4)
+        to_decorate.to_call_cls(3, 4)
+        to_decorate.to_call_static(3, 4)
 
-        else:
-            assert False, "Unexpected decorator???"
+        assert len(tracker) == 5
+        assert tracker[0] == {1: ()}
+        assert tracker[1] == {0: ()}
+        assert tracker[2] == {2: (3, 4)}
+        assert tracker[3] == {3: (3, 4)}
+        assert tracker[4] == {4: (3, 4)}
 
+    def test_before_decorates_on_class_references(self):
+        """Decorating class and staticmethods applies to the class ref."""
 
-@pytest.mark.parametrize("decor, ret, kwargs, fn_args, fn_kwargs", base_params)
-def test_decorate_no_mixing(
-    decor, ret, kwargs, fn_args, fn_kwargs, pass_mock=None, decor_name=None
-):
-    """Test the ``decorate`` decorator, one type at a time"""
+        tracker = []
 
-    decorated_mock_return = "Elementary"
+        def to_call_before(decorated: Decorated) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
 
-    decor_name = decor_name or decor.__name__
+        @before(to_call_before)
+        class _ToDecorate:
+            @classmethod
+            def to_call_cls(cls, *args):
+                tracker.append({2: args})
 
-    pass_mock = pass_mock or Mock(return_value=ret)
+            @staticmethod
+            def to_call_static(*args):
+                tracker.append({3: args})
 
-    decorated_mock = Mock(return_value=decorated_mock_return)
+        _ToDecorate.to_call_cls(1, 2)
+        _ToDecorate.to_call_static(3, 4)
 
-    pass_mock.__name__ = str("before_mock")
-    decorated_mock.__name__ = str("decorated_mock")
+        assert len(tracker) == 4
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {2: (1, 2)}
+        assert tracker[2] == {1: (3, 4)}
+        assert tracker[3] == {3: (3, 4)}
 
-    kwargs[decor_name] = pass_mock
+    def test_before_direct_method_decoration_equivalent(self):
+        """Direct and implicit decoration work the same way."""
 
-    fn = decorate(**kwargs)(decorated_mock)
+        tracker = []
 
-    fn_ret = fn(*fn_args, **fn_kwargs)
+        def to_call_before(decorated: Decorated) -> None:
+            # Ensure this happens before the wrapped call.
+            tracker.append({1: decorated.args})
 
-    fn_sig_func = func_sig_map[decor_name]
-    fn_sig_args = [kwargs, fn_args, fn_kwargs, decorated_mock]
-    if decor_name == "after":
-        fn_sig_args.append(decorated_mock_return)
+        class _ToDecorate:
+            @before(to_call_before)
+            def to_call(self, *args):
+                tracker.append({2: args})
 
-    # Remove the before/after/instead key from the kwargs dict, since
-    # it does not get passed from the decorator call down to the
-    # before/after/instead call
-    del kwargs[decor_name]
+            @classmethod
+            @before(to_call_before)
+            def to_call_cls(cls, *args):
+                tracker.append({3: args})
 
-    exp_args, exp_kwargs = fn_sig_func(*fn_sig_args)
+            @staticmethod
+            @before(to_call_before)
+            def to_call_static(*args):
+                tracker.append({4: args})
 
-    pass_mock.assert_called_once_with(*exp_args, **exp_kwargs)
+        _ToDecorate().to_call(1, 2)
+        _ToDecorate().to_call_cls(3, 4)
+        _ToDecorate().to_call_static(5, 6)
 
-    if decor_name == "before":
-        if ret is not None:
-            assert len(ret) == 2
-            args, kwargs = ret
-            decorated_mock.assert_called_once_with(*args, **kwargs)
-        else:
-            decorated_mock.assert_called_once_with(*fn_args, **fn_kwargs)
+        assert len(tracker) == 6
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {2: (1, 2)}
+        assert tracker[2] == {1: (3, 4)}
+        assert tracker[3] == {3: (3, 4)}
+        assert tracker[4] == {1: (5, 6)}
+        assert tracker[5] == {4: (5, 6)}
 
-        assert fn_ret == decorated_mock_return
 
-    elif decor_name == "after":
-        decorated_mock.assert_called_once_with(*fn_args, **fn_kwargs)
+class TestAfter:
+    """Test generic decorators."""
 
-        if ret is not None:
-            assert fn_ret == ret
-        else:
-            assert fn_ret == decorated_mock_return
+    def test_after_no_ret(self):
+        """A after decorator with no return does not affect teh return value."""
 
-    elif decor_name == "instead":
-        decorated_mock.assert_not_called()
-        assert ret == fn_ret
+        tracker = []
 
-    else:
-        assert False, "Unexpected decorator???"
+        def to_call_after(decorated: Decorated) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.result})
 
+        @after(to_call_after)
+        def to_call(*args):
+            tracker.append({2: args})
+            return 0
 
-@pytest.mark.parametrize("decor, ret, kwargs, fn_args, fn_kwargs", base_params)
-def test_decorator_constructor_no_mixing(
-    decor, ret, kwargs, fn_args, fn_kwargs
-):
-    """Test that decorator-generated decorators behave as expected"""
+        assert to_call(1, 2) == 0
 
-    pass_mock = Mock(return_value=ret)
+        assert len(tracker) == 2
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: 0}
 
-    pass_mock.__name__ = str("before_mock")
+    def test_after_ret(self):
+        """A after decorator's return, if present, replaces fn return."""
 
-    kwargs[decor.__name__] = pass_mock
+        tracker = []
 
-    # Make a custom generated decorator
-    gen_decorator = construct_decorator(**kwargs)
+        def to_call_after(decorated: Decorated) -> int:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.result})
+            return 1
 
-    test_decorate_no_mixing(
-        gen_decorator,
-        ret,
-        kwargs,
-        fn_args,
-        fn_kwargs,
-        pass_mock=pass_mock,
-        decor_name=decor.__name__,
-    )
+        @after(to_call_after)
+        def to_call(*args):
+            tracker.append({2: args})
+            return 0
 
+        assert to_call(1, 2) == 1
 
-@pytest.mark.parametrize("decorator", [before, after, instead])
-def test_direct_method_decoration(decorator):
-    """Test the persistence across calls of extras"""
+        assert len(tracker) == 2
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: 0}
 
-    inst_tracker = Mock(name="inst_tracker", return_value=None)
-    cls_tracker = Mock(name="cls_tracker", return_value=None)
-    static_tracker = Mock(name="static_tracker", return_value=None)
+    def test_after_receives_kwargs(self):
+        """Any kwargs are passed to the callable."""
 
-    inst_tracker.__name__ = str("inst_tracker")
-    cls_tracker.__name__ = str("cls_tracker")
-    static_tracker.__name__ = str("static_tracker")
+        tracker = []
 
-    class SomeClass(object):
-        @decorator(inst_tracker, pass_params=True)
-        def some_method(self):
-            pass
+        def to_call_after(decorated: Decorated, extra=None) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: (decorated.args, extra)})
 
-        @classmethod
-        @decorator(cls_tracker, pass_params=True)
-        def some_clsmethod(cls):
-            pass
+        @after(to_call_after, extra="read_all_about_it")
+        def to_call(*args):
+            tracker.append({2: args})
 
-        @staticmethod
-        @decorator(static_tracker, pass_params=True)
-        def some_staticmethod():
-            pass
+        to_call(1, 2)
 
-    sc = SomeClass()
+        assert len(tracker) == 2
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: ((1, 2), "read_all_about_it")}
 
-    sc.some_method(), sc.some_clsmethod(), sc.some_staticmethod()
+    def test_after_implicit_instancemethod(self):
+        """Before implicitly decorates instancemethods."""
 
-    for mock in inst_tracker, cls_tracker, static_tracker:
+        tracker = []
 
-        assert len(mock.mock_calls) == 1
+        def to_call_after(decorated: Decorated) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.args})
 
-        called_with = mock.call_args[0]
+        @after(to_call_after)
+        class _ToDecorate:
+            def to_call(self, *args):
+                tracker.append({2: args})
 
-        if decorator is after:
-            args, kwargs = called_with[1:3]
-        else:
-            args, kwargs = called_with[:2]
+        _ToDecorate().to_call(1, 2)
 
-        assert args == ()
-        assert kwargs == {}
+        assert len(tracker) == 2
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: (1, 2)}
+
+    def test_after_implicit_classmethod(self):
+        """Before implicitly decorates classmethods."""
+
+        tracker = []
+
+        def to_call_after(decorated: Decorated) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @after(to_call_after)
+        class _ToDecorate:
+            @classmethod
+            def to_call(cls, *args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 2
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: (1, 2)}
+
+    def test_after_implicit_staticmethod(self):
+        """Before implicitly decorates staticmethods."""
+
+        tracker = []
+
+        def to_call_after(decorated: Decorated) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @after(to_call_after)
+        class _ToDecorate:
+            @staticmethod
+            def to_call(*args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 2
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: (1, 2)}
+
+    def test_after_implicit_instancemethod_instace_only(self):
+        """Instance methods can be decorated in isolation."""
+
+        tracker = []
+
+        def to_call_after(decorated: Decorated) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @after(to_call_after, instance_methods_only=True)
+        class _ToDecorate:
+            def to_call(self, *args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 2
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: (1, 2)}
+
+    def test_after_implicit_classmethod_instance_only(self):
+        """Instance methods can be decorated in isolation."""
+
+        tracker = []
+
+        def to_call_after(decorated: Decorated) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @after(to_call_after, instance_methods_only=True)
+        class _ToDecorate:
+            @classmethod
+            def to_call(cls, *args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 1
+        assert tracker[0] == {2: (1, 2)}
+
+    def test_after_implicit_staticmethod_instance_only(self):
+        """Instance methods can be decorated in isolation."""
+
+        tracker = []
+
+        def to_call_after(decorated: Decorated) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @after(to_call_after, instance_methods_only=True)
+        class _ToDecorate:
+            @staticmethod
+            def to_call(*args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 1
+        assert tracker[0] == {2: (1, 2)}
+
+    def test_after_method_decorates_class_if_not_implicit(self):
+        """WIthout implicit method decoration, the class init is decorated."""
+
+        tracker = []
+
+        def to_call_after(decorated: Decorated) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @after(to_call_after, implicit_method_decoration=False)
+        class _ToDecorate:
+            def __init__(self):
+                super().__init__()
+                tracker.append({0: ()})
+
+            def to_call(self, *args):
+                tracker.append({2: args})
+
+            @classmethod
+            def to_call_cls(cls, *args):
+                tracker.append({3: args})
+
+            @staticmethod
+            def to_call_static(*args):
+                tracker.append({4: args})
+
+        to_decorate = _ToDecorate()
+
+        to_decorate.to_call(3, 4)
+        to_decorate.to_call_cls(3, 4)
+        to_decorate.to_call_static(3, 4)
+
+        assert len(tracker) == 5
+        assert tracker[0] == {0: ()}
+        assert tracker[1] == {1: ()}
+        assert tracker[2] == {2: (3, 4)}
+        assert tracker[3] == {3: (3, 4)}
+        assert tracker[4] == {4: (3, 4)}
+
+    def test_after_decorates_on_class_references(self):
+        """Decorating class and staticmethods applies to the class ref."""
+
+        tracker = []
+
+        def to_call_after(decorated: Decorated) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @after(to_call_after)
+        class _ToDecorate:
+            @classmethod
+            def to_call_cls(cls, *args):
+                tracker.append({2: args})
+
+            @staticmethod
+            def to_call_static(*args):
+                tracker.append({3: args})
+
+        _ToDecorate.to_call_cls(1, 2)
+        _ToDecorate.to_call_static(3, 4)
+
+        assert len(tracker) == 4
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: (1, 2)}
+        assert tracker[2] == {3: (3, 4)}
+        assert tracker[3] == {1: (3, 4)}
+
+    def test_after_direct_method_decoration_equivalent(self):
+        """Direct and implicit decoration work the same way."""
+
+        tracker = []
+
+        def to_call_after(decorated: Decorated) -> None:
+            # Ensure this happens after the wrapped call.
+            tracker.append({1: decorated.args})
+
+        class _ToDecorate:
+            @after(to_call_after)
+            def to_call(self, *args):
+                tracker.append({2: args})
+
+            @classmethod
+            @after(to_call_after)
+            def to_call_cls(cls, *args):
+                tracker.append({3: args})
+
+            @staticmethod
+            @after(to_call_after)
+            def to_call_static(*args):
+                tracker.append({4: args})
+
+        _ToDecorate().to_call(1, 2)
+        _ToDecorate().to_call_cls(3, 4)
+        _ToDecorate().to_call_static(5, 6)
+
+        assert len(tracker) == 6
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: (1, 2)}
+        assert tracker[2] == {3: (3, 4)}
+        assert tracker[3] == {1: (3, 4)}
+        assert tracker[4] == {4: (5, 6)}
+        assert tracker[5] == {1: (5, 6)}
 
 
 @pytest.mark.parametrize("decorator", [before, after, instead])
 def test_extras_persistence(decorator):
     """Test the persistence across calls of extras"""
 
-    def memo_func(memo, **kwargs):
+    def memo_func(_decorated, memo):
         memo.append("called")
 
     memo = []
@@ -508,13 +618,7 @@ def test_extras_persistence(decorator):
 
     decorated.__name__ = str("decorated_mock")
 
-    decorated = decorator(
-        memo_func,
-        pass_params=False,
-        pass_result=False,
-        pass_decorated=False,
-        memo=memo,
-    )(decorated)
+    decorated = decorator(memo_func, memo=memo,)(decorated)
 
     for _ in range(5):
         decorated()
@@ -526,17 +630,13 @@ def test_extras_persistence(decorator):
 def test_extras_persistence_class(decorator):
     """Test persistence of extras when decorating a class"""
 
-    def memo_func(memo, **kwargs):
+    def memo_func(_decorated, memo):
         memo.append("called")
 
     memo = []
 
     @decorator(
-        memo_func,
-        pass_params=False,
-        pass_result=False,
-        pass_decorated=False,
-        memo=memo,
+        memo_func, memo=memo,
     )
     class GreatClass(object):
         def awesome_method(self):
@@ -588,18 +688,13 @@ def test_extras_persistence_class(decorator):
 def test_extras_persistence_class_inst_only(decorator):
     """Test persistence of extras, instance methods only"""
 
-    def memo_func(memo, **kwargs):
+    def memo_func(_decorated, memo):
         memo.append("called")
 
     memo = []
 
     @decorator(
-        memo_func,
-        pass_params=False,
-        pass_result=False,
-        pass_decorated=False,
-        instance_methods_only=True,
-        memo=memo,
+        memo_func, instance_methods_only=True, memo=memo,
     )
     class GreatClass(object):
         def awesome_method(self):
@@ -645,221 +740,6 @@ def test_extras_persistence_class_inst_only(decorator):
         gc.stately_method()
 
     assert len(memo) == 2
-
-
-def test_stacking_before_after():
-    """Test the stacking of before followed by after"""
-    tracker = Mock(name="tracker", return_value=None)
-
-    decorated = Mock(name="decorated", return_value="decorated")
-
-    tracker.__name__ = str("tracker")
-    decorated.__name__ = str("decorated")
-
-    fn = before(tracker)(decorated)
-    fn = after(tracker)(fn)
-
-    fn()
-
-    decorated.assert_called_once_with()
-
-    assert tracker.call_count == 2
-    before_call_args, before_call_kwargs = tracker.call_args_list[0]
-    after_call_args, after_call_kwargs = tracker.call_args_list[1]
-
-    assert before_call_args == ()
-    assert before_call_kwargs == {}
-
-    assert after_call_args == ("decorated",)
-    assert after_call_kwargs == {}
-
-
-def test_stacking_after_before():
-    """Test stacking of after prior to before"""
-    tracker = Mock(name="tracker", return_value=None)
-
-    decorated = Mock(name="decorated", return_value="decorated")
-
-    tracker.__name__ = str("tracker")
-    decorated.__name__ = str("decorated")
-
-    fn = after(tracker)(decorated)
-    fn = before(tracker)(fn)
-
-    fn()
-
-    decorated.assert_called_once_with()
-
-    assert tracker.call_count == 2
-
-    # The order in which before/after are specified shouldn't matter
-    before_call_args, before_call_kwargs = tracker.call_args_list[0]
-    after_call_args, after_call_kwargs = tracker.call_args_list[1]
-
-    assert before_call_args == ()
-    assert before_call_kwargs == {}
-
-    assert after_call_args == ("decorated",)
-    assert after_call_kwargs == {}
-
-
-@pytest.mark.parametrize("decor", [before, after])
-def test_stacking_instead(decor):
-    """Test stacking when instead is specified last (which is WRONG)
-
-    Note that putting instead late in the stack WILL override
-    any previous decorators!
-    """
-    tracker = Mock(name="tracker", return_value=None)
-
-    decorated = Mock(name="decorated", return_value="decorated")
-
-    tracker.__name__ = str("tracker")
-    decorated.__name__ = str("decorated")
-
-    fn = decor(tracker)(decorated)
-    fn = instead(tracker)(fn)
-
-    fn()
-
-    decorated.assert_not_called()
-    assert tracker.call_count == 1
-    assert tracker.call_args[0][:2] == ((), {})
-    assert isfunction(tracker.call_args[0][2])
-
-
-def test_stacking_instead_before():
-    """Test stacking instead prior to before
-
-    In this case, before should run properly.
-    """
-    tracker = Mock(name="tracker", return_value=None)
-
-    decorated = Mock(name="decorated", return_value="decorated")
-
-    tracker.__name__ = str("tracker")
-    decorated.__name__ = str("decorated")
-
-    fn = instead(tracker)(decorated)
-    fn = before(tracker)(fn)
-
-    fn()
-
-    decorated.assert_not_called()
-
-    assert tracker.call_count == 2
-
-    before_call_args, before_call_kwargs = tracker.call_args_list[0]
-    instead_call_args, instead_call_kwargs = tracker.call_args_list[1]
-
-    assert before_call_args == ()
-    assert before_call_kwargs == {}
-
-    assert instead_call_args == ((), {}, decorated)
-    assert instead_call_kwargs == {}
-
-
-def test_stacking_instead_after():
-    """Test stacking instead prior to after
-
-    In this case, after should behave properly
-    """
-    tracker = Mock(name="tracker", return_value=None)
-
-    decorated = Mock(name="decorated", return_value="decorated")
-
-    tracker.__name__ = str("tracker")
-    decorated.__name__ = str("decorated")
-
-    fn = instead(tracker)(decorated)
-    fn = after(tracker)(fn)
-
-    fn()
-
-    decorated.assert_not_called()
-
-    assert tracker.call_count == 2
-
-    instead_call_args, instead_call_kwargs = tracker.call_args_list[0]
-    after_call_args, after_call_kwargs = tracker.call_args_list[1]
-
-    assert instead_call_args == ((), {}, decorated)
-    assert instead_call_kwargs == {}
-
-    assert after_call_args == (None,)
-    assert after_call_kwargs == {}
-
-
-def test_stacking_instead_before_after():
-    """Test stacking all three decorators, instead-before-after
-
-    As long as instead is specified first, this should work fine
-    """
-    tracker = Mock(name="tracker", return_value=None)
-
-    decorated = Mock(name="decorated", return_value="decorated")
-
-    tracker.__name__ = str("tracker")
-    decorated.__name__ = str("decorated")
-
-    fn = instead(tracker)(decorated)
-    fn = before(tracker)(fn)
-    fn = after(tracker)(fn)
-
-    fn()
-
-    decorated.assert_not_called()  # because instead() doesn't call it
-
-    assert tracker.call_count == 3
-
-    before_call_args, before_call_kwargs = tracker.call_args_list[0]
-    instead_call_args, instead_call_kwargs = tracker.call_args_list[1]
-    after_call_args, after_call_kwargs = tracker.call_args_list[2]
-
-    assert before_call_args == ()
-    assert before_call_kwargs == {}
-
-    assert instead_call_args == ((), {}, decorated)
-    assert instead_call_kwargs == {}
-
-    assert after_call_args == (None,)
-    assert after_call_kwargs == {}
-
-
-def test_stacking_instead_after_before():
-    """Test stacking all three decorators, instead-after-before
-
-    This should work exactly the same as instead-before-after
-    """
-    tracker = Mock(name="tracker", return_value=None)
-
-    decorated = Mock(name="decorated", return_value="decorated")
-
-    tracker.__name__ = str("tracker")
-    decorated.__name__ = str("decorated")
-
-    fn = instead(tracker)(decorated)
-    fn = after(tracker)(fn)
-    fn = before(tracker)(fn)
-
-    fn()
-
-    decorated.assert_not_called()  # because instead() doesn't call it
-
-    assert tracker.call_count == 3
-
-    before_call_args, before_call_kwargs = tracker.call_args_list[0]
-    instead_call_args, instead_call_kwargs = tracker.call_args_list[1]
-    after_call_args, after_call_kwargs = tracker.call_args_list[2]
-
-    assert before_call_args == ()
-    assert before_call_kwargs == {}
-
-    assert instead_call_args == ((), {}, decorated)
-    assert instead_call_kwargs == {}
-
-    assert after_call_args == (None,)
-    assert after_call_kwargs == {}
 
 
 @pytest.mark.parametrize(

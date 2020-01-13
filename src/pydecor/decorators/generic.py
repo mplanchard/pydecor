@@ -24,6 +24,7 @@ __all__ = (
 )
 
 
+import typing as t
 from inspect import isclass
 from logging import getLogger
 from functools import partial, wraps
@@ -40,7 +41,7 @@ DecoratorType = Union[FunctionType, MethodType, type]
 
 
 class Decorated(object):
-    """A representation of a decorated class
+    """A representation of a decorated class.
 
     This user-immutable object provides information about the decorated
     class, method, or function. The decorated callable can be called
@@ -100,6 +101,11 @@ class Decorated(object):
 
     __slots__ = ("args", "kwargs", "wrapped", "result")
 
+    args: tuple
+    kwargs: dict
+    wrapped: t.Callable
+    result: t.Optional[t.Any]
+
     def __init__(self, wrapped, args, kwargs, result=None):
         """Instantiate a Decorated object
 
@@ -153,135 +159,55 @@ class Decorated(object):
 
 
 def before(
-    func,
-    pass_params=False,
-    pass_decorated=False,
-    implicit_method_decoration=True,
-    instance_methods_only=False,
-    unpack_extras=True,
-    extras_key="extras",
-    _use_future_syntax=False,
-    **extras
+    func, implicit_method_decoration=True, instance_methods_only=False, **extras
 ):
-    """Specify a callable to be run before the decorated resource
+    """Specify a callable to be run before the decorated resource.
 
     A callable provided to this decorator will be called
-    any time the decorated function is executed, immediately before
+    any time the decorated function is executed, immediately _before_
     its execution.
 
     The callable is expected to either return ``None`` or to return
     a tuple and dict with which to replace the arguments to the
     decorated function.
 
-    By default, the provided callable is called with no arguments
-    and only any keyword arguments provided as extras to the
-    decoration call::
-
-        (**extras)
-
-    However, this is configurable. If all possible ``pass``
-    parameters are True, the call signature would look like this::
-
-        (decorated_args, decorated_kwargs, decorated, **extras)
-
-    Items that are omitted will be removed from the call signature.
-    For example, specifying ``pass_params=False`` and
-    ``pass_decorated=True`` would adjust the call signature to
-    look like::
-
-        (decorated, **extras)
-
-    Specifying ``pass_params=True`` will pass the arguments and
-    keyword arguments of the decorated function (as a tuple and
-    a dict, respectively) to the provided callable.
-
-    Specifying ``pass_decorated=True`` will pass a reference
-    to the decorated function to the provided callable.
-
-    Any extra keyword arguments passed to the decoration call
-    will by default be passed directly as keyword arguments
-    to ``func``. If keyword names conflict with the passed
-    function, ``unpack_extras=False`` will cause extra keyword
-    arguments to be passed as a dictionary using the value
-    of ``extras_key``, which defaults to ``"extras"``.
+    The callable is called with an instance of :any:`Decorated` as
+    its first positional argument. Any kwargs provided to `before()`
+    are also passed to the callable.
 
     :param Callable func:
-        a callable to run before the decorated function. By default,
-        it is called with no arguments, but the call signature may
-        be changed depending on the value of ``pass_params`` and
-        ``pass_decorated``
-
-    :param bool pass_params:
-        (default False) if True, the arguments and keyword arguments to
-        the decorated function will be passed to ``func`` as a tuple
-        and a dict, respectively
-
-    :param bool pass_decorated:
-        (default False) if True, a reference to the decorated function
-        will be passed to the provided ``func``
+        a callable to run before the decorated function. It is called
+        with an instance of :any:`Decorated` as its first argument. In
+        addition, any keyword arguments provided to `before` are passed
+        through to the callable.
 
     :param bool implicit_method_decoration:
         (default True) if True, decorating a class implies decorating
-        all of its methods
+        all of its methods. Otherwise, the decorator will be called
+        when the class is instantiated.
 
     :param bool instance_methods_only:
         (default False) if True, decorating a class implies decorating
         only its instance methods (not ``classmethod``- or
         ``staticmethod``- decorated methods)
 
-    :param bool unpack_extras:
-        (default True) if True, any extra keyword arguments included
-        in the decorator call will be passed as keyword arguments
-        to ``func``. If ``False``, extra keyword arguments will be
-        passed to func as a dict assigned to the keyword argument
-        corresponding to ``key``
-
-    :param str extras_key:
-        (default ``"extras"``) the key to which to assign extra
-        decorator keyword arguments when ``unpack_extras`` is ``False``
-
-    :param bool _use_future_syntax:
-        (default False) if True, use the new ``Decorated`` object,
-        which will become the default in version 2.0.0. If this
-        parameter is True, all other parameters will be ignored
-        expect for ``instance_methods_only`` and
-        ``implicit_method_decoration``, a ``Decorated`` object
-        will be passed to the function as its first argument,
-        and any provided keyword arguments will be unpacked.
-
     :param **dict extras:
-        any extra keyword arguments supplied to the decoration call
+        any extra keyword arguments supplied to the decoration call,
+        which will be passed directly to the provided callable.
 
     :return: the decorated function/method/class
     :rtype: Union[FunctionType,MethodType,type]
     """
 
     def decorator(decorated):
-        """The function that returns a replacement for the original"""
+        """Return a decorated function."""
 
         def wrapper(*args, **kwargs):
-            """The function that replaces the decorated one"""
-
-            if unpack_extras or _use_future_syntax:
-                fkwargs = extras
-            else:
-                fkwargs = {extras_key: extras}
-
+            """Call the before and decorated functions."""
             fn = func
-            decor = decorated
 
-            if _use_future_syntax:
-                decor = Decorated(decorated, args, kwargs)
-                fn = partial(fn, decor)
-            else:
-                if pass_params:
-                    fn_args = get_fn_args(decorated, args)
-                    fn = partial(fn, fn_args, kwargs)
-
-                if pass_decorated:
-                    fn = partial(fn, decorated)
-
-            fret = fn(**fkwargs)
+            decor = Decorated(decorated, args, kwargs)
+            fret = fn(decor, **extras)
 
             if fret is not None:
                 args, kwargs = fret
@@ -303,113 +229,40 @@ def before(
 
 
 def after(
-    func,
-    pass_params=False,
-    pass_result=True,
-    pass_decorated=False,
-    implicit_method_decoration=True,
-    instance_methods_only=False,
-    unpack_extras=True,
-    extras_key="extras",
-    _use_future_syntax=False,
-    **extras
+    func, implicit_method_decoration=True, instance_methods_only=False, **extras
 ):
-    """Specify a callable to be run after the decorated resource
+    """Specify a callable to be run after the decorated resource.
 
     A callable provided to this decorator will be called
-    any time the decorated function is executed, immediately after
+    any time the decorated function is executed, immediately _after_
     its execution.
 
     If the callable returns a value, that value will replace the
     return value of the decorated function.
 
-    By default, the provided callable is called with the return from
-    the decorated function as its first argument and only any
-    keyword arguments provided as extras to the decoration call::
-
-        (decorated_result, **extras)
-
-    However, this is configurable. If all possible ``pass``
-    parameters are True, the call signature would look like this::
-
-        (decorated_result, decorated_args,
-         decorated_kwargs, decorated, **extras)
-
-    Items that are omitted will be removed from the call signature.
-    For example, specifying ``pass_params=False`` and
-    ``pass_decorated=True`` would adjust the call signature to
-    look like::
-
-        (decorated_result, decorated, **extras)
-
-    Specifying ``pass_result=False`` will prevent the result
-    from being passed to the callable.
-
-    Specifying ``pass_params=True`` will pass the arguments and
-    keyword arguments (as a tuple and a dict) to the decorated
-    function as the second and third arguments, respectively.
-
-    Specifying ``pass_decorated=True`` will pass a reference
-    to the decorated function as the second argument, or the
-    fourth argument if ``pass_params=True``
-
-    Any extra keyword arguments passed to the decoration call
-    will by default be passed directly as keyword arguments
-    to ``func``. If keyword names conflict with the passed
-    function, ``unpack_extras=False`` will cause extra keyword
-    arguments to be passed as a dictionary using the value
-    of ``extras_key``, which defaults to ``"extras"``.
+    The callable is called with an instance of :any:`Decorated` as
+    its first positional argument. Any kwargs provided to `after()`
+    are also passed to the callable.
 
     :param Callable func:
-        a callable to run after the decorated function. By default,
-        it is called with the result of the decorated function as
-        its only argument, but the call signature may be changed
-        depending on the value of ``pass_params`` and ``pass_decorated``
-
-    :param bool pass_result:
-        (default True) if True, the return from the decorated
-        function will be passed to the provided callable
-
-    :param bool pass_params:
-        (default False) if True, the arguments and keyword arguments to
-        the decorated function will be passed to ``func`` as a tuple
-        and a dict, respectively
-
-    :param bool pass_decorated:
-        (default False) if True, a reference to the decorated function
-        will be passed to the provided ``func``
+        a callable to run after the decorated function. It is called
+        with an instance of :any:`Decorated` as its first argument. In
+        addition, any keyword arguments provided to `before` are passed
+        through to the callable.
 
     :param bool implicit_method_decoration:
         (default True) if True, decorating a class implies decorating
-        all of its methods
+        all of its methods. Otherwise, the decorator will be called
+        when the class is instantiated.
 
     :param bool instance_methods_only:
         (default False) if True, decorating a class implies decorating
         only its instance methods (not ``classmethod``- or
         ``staticmethod``- decorated methods)
 
-    :param bool unpack_extras:
-        (default True) if True, any extra keyword arguments included
-        in the decorator call will be passed as keyword arguments
-        to ``func``. If ``False``, extra keyword arguments will be
-        passed to func as a dict assigned to the keyword argument
-        corresponding to ``key``
-
-    :param str extras_key:
-        (default ``"extras"``) the key to which to assign extra
-        decorator keyword arguments when ``unpack_extras`` is ``False``
-
-    :param bool _use_future_syntax:
-        (default False) if True, use the new ``Decorated`` object,
-        which will become the default in version 2.0.0. If this
-        parameter is True, all other parameters will be ignored
-        expect for ``instance_methods_only`` and
-        ``implicit_method_decoration``, a ``Decorated`` object
-        will be passed to the function as its first argument,
-        and any provided keyword arguments will be unpacked.
-
     :param **dict extras:
-        any extra keyword arguments supplied to the decoration call
+        any extra keyword arguments supplied to the decoration call,
+        which will be passed directly to the provided callable.
 
     :return: the decorated function/method/class
     :rtype: Union[FunctionType,MethodType,type]
@@ -420,40 +273,14 @@ def after(
 
         def wrapper(*args, **kwargs):
             """The function that replaces the decorated one"""
-
-            decor = decorated
-
-            if _use_future_syntax:
-                decor = Decorated(decorated, args, kwargs)
-
-            ret = decor(*args, **kwargs)
-
-            fn = func
-
-            if _use_future_syntax:
-                fn = partial(fn, decor)
-            else:
-                if pass_result:
-                    fn = partial(fn, ret)
-
-                if pass_params:
-                    fn_args = get_fn_args(decorated, args)
-                    fn = partial(fn, fn_args, kwargs)
-
-                if pass_decorated:
-                    fn = partial(fn, decorated)
-
-            if unpack_extras or _use_future_syntax:
-                fkwargs = extras
-            else:
-                fkwargs = {extras_key: extras}
-
-            fret = fn(**fkwargs)
+            decor = Decorated(decorated, args, kwargs)
+            orig_ret = decor(*args, **kwargs)
+            fret = func(decor, **extras)
 
             if fret is not None:
                 return fret
 
-            return ret
+            return orig_ret
 
         if implicit_method_decoration and isclass(decorated):
             return ClassWrapper.wrap(
@@ -469,17 +296,9 @@ def after(
 
 
 def instead(
-    func,
-    pass_params=True,
-    pass_decorated=True,
-    implicit_method_decoration=True,
-    instance_methods_only=False,
-    unpack_extras=True,
-    extras_key="extras",
-    _use_future_syntax=False,
-    **extras
+    func, implicit_method_decoration=True, instance_methods_only=False, **extras
 ):
-    """Specify a callable to be run in hte place of the decorated resource
+    """Specify a callable to be run in the place of the decorated resource.
 
     A callable provided to this decorator will be called any time the
     decorated function is executed. The decorated function **will not**
@@ -488,73 +307,29 @@ def instead(
     Whatever the provided callable returns is the return value of the
     decorated function.
 
-    By default, the provided callable is called with the arguments
-    and keyword arguments used to call the decorated function, as a
-    tuple and a dict, respectively, and a reference to the decorated
-    function. Any extra keyword arguments specified in the decoration
-    call are also passed to the callable::
-
-        (decorated_args, decorated_kwargs, decorated, **extras)
-
-    Items that are omitted will be removed from the call signature.
-    For example, specifying ``pass_params=False`` would adjust the
-    call signature to look like::
-
-        (decorated, **extras)
-
-    Any extra keyword arguments passed to the decoration call
-    will by default be passed directly as keyword arguments
-    to ``func``. If keyword names conflict with the passed
-    function, ``unpack_extras=False`` will cause extra keyword
-    arguments to be passed as a dictionary using the value
-    of ``extras_key``, which defaults to ``"extras"``.
+    The callable is called with an instance of :any:`Decorated` as
+    its first positional argument. Any kwargs provided to `instead()`
+    are also passed to the callable.
 
     :param Callable func:
-        a callable to run in place of the decorated function. By
-        default, it is called the decorated function's arguments
-        as a tuple, keyword arguments as a dict, and a reference
-        to the decorated function
-
-    :param bool pass_params:
-        (default False) if True, the arguments and keyword arguments to
-        the decorated function will be passed to ``func`` as a tuple
-        and a dict, respectively
-
-    :param bool pass_decorated:
-        (default False) if True, a reference to the decorated function
-        will be passed to the provided ``func``
+        a callable to run in place of the decorated function. It is called
+        with an instance of :any:`Decorated` as its first argument. In
+        addition, any keyword arguments provided to `before` are passed
+        through to the callable.
 
     :param bool implicit_method_decoration:
         (default True) if True, decorating a class implies decorating
-        all of its methods
+        all of its methods. Otherwise, the decorator will be called
+        when the class is instantiated.
 
     :param bool instance_methods_only:
         (default False) if True, decorating a class implies decorating
         only its instance methods (not ``classmethod``- or
         ``staticmethod``- decorated methods)
 
-    :param bool unpack_extras:
-        (default True) if True, any extra keyword arguments included
-        in the decorator call will be passed as keyword arguments
-        to ``func``. If ``False``, extra keyword arguments will be
-        passed to func as a dict assigned to the keyword argument
-        corresponding to ``key``
-
-    :param str extras_key:
-        (default ``"extras"``) the key to which to assign extra
-        decorator keyword arguments when ``unpack_extras`` is ``False``
-
-    :param bool _use_future_syntax:
-        (default False) if True, use the new ``Decorated`` object,
-        which will become the default in version 2.0.0. If this
-        parameter is True, all other parameters will be ignored
-        expect for ``instance_methods_only`` and
-        ``implicit_method_decoration``, a ``Decorated`` object
-        will be passed to the function as its first argument,
-        and any provided keyword arguments will be unpacked.
-
     :param **dict extras:
-        any extra keyword arguments supplied to the decoration call
+        any extra keyword arguments supplied to the decoration call,
+        which will be passed directly to the provided callable.
 
     :return: the decorated function/method/class
     :rtype: Union[FunctionType,MethodType,type]
@@ -565,26 +340,8 @@ def instead(
 
         def wrapper(*args, **kwargs):
             """The function that replaces the decorated one"""
-
-            fn = func
-
-            if _use_future_syntax:
-                decor = Decorated(decorated, args, kwargs)
-                fn = partial(fn, decor)
-            else:
-                if pass_params:
-                    fn_args = get_fn_args(decorated, args)
-                    fn = partial(fn, fn_args, kwargs)
-
-                if pass_decorated:
-                    fn = partial(fn, decorated)
-
-            if unpack_extras or _use_future_syntax:
-                fkwargs = extras
-            else:
-                fkwargs = {extras_key: extras}
-
-            return fn(**fkwargs)
+            decor = Decorated(decorated, args, kwargs)
+            return func(decor, **extras)
 
         if implicit_method_decoration and isclass(decorated):
             return ClassWrapper.wrap(
@@ -608,12 +365,9 @@ def decorate(
     instead_opts=None,
     implicit_method_decoration=True,
     instance_methods_only=False,
-    unpack_extras=True,
-    _use_future_syntax=False,
-    extras_key="extras",
     **extras
 ):
-    """A decorator that combines before, after, and instead decoration
+    """A decorator that combines before, after, and instead decoration.
 
     The ``before``, ``after``, and ``instead`` decorators are all
     stackable, but this decorator provides a straightforward interface
@@ -639,29 +393,28 @@ def decorate(
     is being applied to which methods.
 
     You may specify decorator-specific extras in the various ``opts``
-    dictionaries. In addition, any extra keyword arguments passed
-    to this decorator will be passed to each of the provided
-    callables. As with the individual decorators, if
-    ``unpack_extras=False`` is provided, the extras will be packed
-    into a dict and passed via the ``extras_key`` keyword argument.
+    dictionaries. These will be passed to the provided callables in
+    addition to any keyword arguments supplied to the call to
+    `decorate()`. If there is a naming conflict, the latter override
+    the former.
 
     :param Callable before:
-        a callable to run before the decorated function. By default,
-        it is called with no arguments, but the call signature may
-        be changed depending on the value of ``pass_params`` and
-        ``pass_decorated``
+        a callable to run before the decorated function. It is called
+        with an instance of :any:`Decorated` as its first argument. In
+        addition, any keyword arguments provided to `before` are passed
+        through to the callable.
 
     :param Callable after:
-        a callable to run after the decorated function. By default,
-        it is called with the result of the decorated function as
-        its only argument, but the call signature may be changed
-        depending on the value of ``pass_params`` and ``pass_decorated``
+        a callable to run after the decorated function. It is called
+        with an instance of :any:`Decorated` as its first argument. In
+        addition, any keyword arguments provided to `before` are passed
+        through to the callable.
 
     :param Callable instead:
-        a callable to run in place of the decorated function. By
-        default, it is called the decorated function's arguments
-        as a tuple, keyword arguments as a dict, and a reference
-        to the decorated function
+        a callable to run in place of the decorated function. It is called
+        with an instance of :any:`Decorated` as its first argument. In
+        addition, any keyword arguments provided to `before` are passed
+        through to the callable.
 
     :param dict before_opts:
         a dictionary of keyword arguments to pass to the ``before``
@@ -678,7 +431,8 @@ def decorate(
     :param bool implicit_method_decoration:
         (default True) if True, decorating a class implies decorating
         all of its methods. This value overrides any values set in
-        the various ``opts`` dictionaries.
+        the various ``opts`` dictionaries. If False, the decorator(s)
+        will be called when the class is instantiated.
 
     :param bool instance_methods_only:
         (default False) if True, decorating a class implies decorating
@@ -686,31 +440,10 @@ def decorate(
         ``staticmethod``- decorated methods). This value overrides
         any values set in the various ``opts`` dictionaries.
 
-    :param bool unpack_extras:
-        (default True) if True, any extra keyword arguments included
-        in the decorator call will be passed as keyword arguments
-        to ``func``. If ``False``, extra keyword arguments will be
-        passed to func as a dict assigned to the keyword argument
-        corresponding to ``key``. If provided, this value serves
-        as the default for the various decorators.
-
-    :param str extras_key:
-        (default ``"extras"``) the key to which to assign extra
-        decorator keyword arguments when ``unpack_extras`` is
-        ``False``. If provided, this key serves as the default
-        for the various decorators.
-
-    :param bool _use_future_syntax:
-        (default False) if True, use the new ``Decorated`` object,
-        which will become the default in version 2.0.0. If this
-        parameter is True, all other parameters will be ignored
-        expect for ``instance_methods_only`` and
-        ``implicit_method_decoration``, a ``Decorated`` object
-        will be passed to the function as its first argument,
-        and any provided keyword arguments will be unpacked.
-
     :param **dict extras:
-        any extra keyword arguments supplied to the decoration call
+        any extra keyword arguments supplied to the decoration call.
+        These will be passed directly to the `before`, `after`,
+        and/or `instead` callables.
 
     :return: the decorated function/method/class
     :rtype: Union[FunctionType,MethodType,type]
@@ -733,7 +466,6 @@ def decorate(
         # Disallow mixing of class-level functionality
         opts["implicit_method_decoration"] = implicit_method_decoration
         opts["instance_methods_only"] = instance_methods_only
-        opts["_use_future_syntax"] = _use_future_syntax
 
     def decorator(decorated):
 
@@ -742,27 +474,17 @@ def decorate(
         if my_instead is not None:
 
             global instead
-            dec_kwargs = _kwargs_from_opts(
-                instead_opts, unpack_extras, extras_key, extras
-            )
-            wrapped = instead(my_instead, **dec_kwargs)(wrapped)
+            wrapped = instead(my_instead, **{**instead_opts, **extras})(wrapped)
 
         if my_before is not None:
 
             global before
-            dec_kwargs = _kwargs_from_opts(
-                before_opts, unpack_extras, extras_key, extras
-            )
-            wrapped = before(my_before, **dec_kwargs)(wrapped)
+            wrapped = before(my_before, **{**before_opts, **extras})(wrapped)
 
         if my_after is not None:
 
             global after
-
-            dec_kwargs = _kwargs_from_opts(
-                after_opts, unpack_extras, extras_key, extras
-            )
-            wrapped = after(my_after, **dec_kwargs)(wrapped)
+            wrapped = after(my_after, **{**after_opts, **extras})(wrapped)
 
         def wrapper(*args, **kwargs):
 
@@ -789,12 +511,9 @@ def construct_decorator(
     instead_opts=None,
     implicit_method_decoration=True,
     instance_methods_only=False,
-    unpack_extras=True,
-    _use_future_syntax=False,
-    extras_key="extras",
     **extras
 ):
-    """Return a custom decorator
+    """Return a custom decorator.
 
     Options are all the same as for :any:`decorate` and are, in fact,
     passed directly to it.
@@ -819,20 +538,5 @@ def construct_decorator(
         instead_opts=instead_opts,
         implicit_method_decoration=implicit_method_decoration,
         instance_methods_only=instance_methods_only,
-        unpack_extras=unpack_extras,
-        extras_key=extras_key,
-        _use_future_syntax=_use_future_syntax,
         **extras
     )
-
-
-def _kwargs_from_opts(opts, unpack_extras, extras_key, extras):
-    kwargs = opts
-    if opts.get("unpack_extras", unpack_extras) or opts.get(
-        "_use_future_syntax", False
-    ):
-        kwargs.update(extras)
-    else:
-        key = opts.get("extras_key", extras_key)
-        kwargs[key] = extras
-    return kwargs
