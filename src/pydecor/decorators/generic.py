@@ -360,9 +360,9 @@ def decorate(
     before=None,
     after=None,
     instead=None,
-    before_opts=None,
-    after_opts=None,
-    instead_opts=None,
+    before_kwargs=None,
+    after_kwargs=None,
+    instead_kwargs=None,
     implicit_method_decoration=True,
     instance_methods_only=False,
     **extras
@@ -372,9 +372,13 @@ def decorate(
     The ``before``, ``after``, and ``instead`` decorators are all
     stackable, but this decorator provides a straightforward interface
     for combining them so that you don't have to worry about
-    decorator precedence. In addition, this decorator ensures that
-    ``instead`` is called *first*, so that it does not replace
-    any desired calls to ``before`` or ``after``.
+    decorator precedence.
+
+    The order the callables are executed in is:
+
+    * before
+    * instead / wrapped function
+    * after
 
     This decorator takes three optional keyword arguments, ``before``,
     ``after``, and ``instead``, each of which may be any callable that
@@ -382,8 +386,8 @@ def decorate(
 
     The provided callables will be invoked with the same default
     call signature as for the individual decorators. Call signatures
-    and other options may be adjusted by passing ``before_opts``,
-    ``after_opts``, and ``instead_opts`` dicts to this decorator,
+    and other options may be adjusted by passing ``before_kwargs``,
+    ``after_kwargs``, and ``instead_kwargs`` dicts to this decorator,
     which will be directly unpacked into the invocation of the
     individual decorators.
 
@@ -416,15 +420,15 @@ def decorate(
         addition, any keyword arguments provided to `before` are passed
         through to the callable.
 
-    :param dict before_opts:
+    :param dict before_kwargs:
         a dictionary of keyword arguments to pass to the ``before``
         decorator. See :any:`before` for supported options.
 
-    :param dict after_opts:
+    :param dict after_kwargs:
         a dictionary of keyword arguments to pass to the ``after``
         decorator. See :any:`after` for supported options.
 
-    :param dict instead_opts:
+    :param dict instead_kwargs:
         a dictionary of keyword arguments to pass to the ``instead``
         decorator. See :any:`instead` for supported options
 
@@ -458,11 +462,11 @@ def decorate(
     my_after = after
     my_instead = instead
 
-    before_opts = before_opts or {}
-    after_opts = after_opts or {}
-    instead_opts = instead_opts or {}
+    before_kwargs = before_kwargs or {}
+    after_kwargs = after_kwargs or {}
+    instead_kwargs = instead_kwargs or {}
 
-    for opts in (before_opts, after_opts, instead_opts):
+    for opts in (before_kwargs, after_kwargs, instead_kwargs):
         # Disallow mixing of class-level functionality
         opts["implicit_method_decoration"] = implicit_method_decoration
         opts["instance_methods_only"] = instance_methods_only
@@ -474,17 +478,19 @@ def decorate(
         if my_instead is not None:
 
             global instead
-            wrapped = instead(my_instead, **{**instead_opts, **extras})(wrapped)
+            wrapped = instead(my_instead, **{**instead_kwargs, **extras})(
+                wrapped
+            )
 
         if my_before is not None:
 
             global before
-            wrapped = before(my_before, **{**before_opts, **extras})(wrapped)
+            wrapped = before(my_before, **{**before_kwargs, **extras})(wrapped)
 
         if my_after is not None:
 
             global after
-            wrapped = after(my_after, **{**after_opts, **extras})(wrapped)
+            wrapped = after(my_after, **{**after_kwargs, **extras})(wrapped)
 
         def wrapper(*args, **kwargs):
 
@@ -506,9 +512,9 @@ def construct_decorator(
     before=None,
     after=None,
     instead=None,
-    before_opts=None,
-    after_opts=None,
-    instead_opts=None,
+    before_kwargs=None,
+    after_kwargs=None,
+    instead_kwargs=None,
     implicit_method_decoration=True,
     instance_methods_only=False,
     **extras
@@ -533,9 +539,9 @@ def construct_decorator(
         before=before,
         after=after,
         instead=instead,
-        before_opts=before_opts,
-        after_opts=after_opts,
-        instead_opts=instead_opts,
+        before_kwargs=before_kwargs,
+        after_kwargs=after_kwargs,
+        instead_kwargs=instead_kwargs,
         implicit_method_decoration=implicit_method_decoration,
         instance_methods_only=instance_methods_only,
         **extras

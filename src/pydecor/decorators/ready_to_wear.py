@@ -139,10 +139,7 @@ def log_call(logger=None, level="info", format_str=LOG_CALL_FMT_STR):
     :rtype: DecoratorType
     """
     return after(
-        functions.log_call,
-        logger=logger,
-        level=level,
-        format_str=format_str,
+        functions.log_call, logger=logger, level=level, format_str=format_str,
     )
 
 
@@ -169,6 +166,4 @@ def memoize(keep=0, cache_class=LRUCache):
 
     :rtype: DecoratorType
     """
-    return instead(
-        functions.memoize, memo=cache_class(keep)
-    )
+    return instead(functions.memoize, memo=cache_class(keep))

@@ -37,13 +37,13 @@ class LRUCache(OrderedDict):
     def __getitem__(self, key, **kwargs):
         value = OrderedDict.__getitem__(self, key)
         del self[key]
-        OrderedDict.__setitem__(self, key, value, **kwargs)
+        OrderedDict.__setitem__(self, key, value, **kwargs)  # type: ignore
         return value
 
     def __setitem__(self, key, value, **kwargs):
         if key in self:
             del self[key]
-        OrderedDict.__setitem__(self, key, value, **kwargs)
+        OrderedDict.__setitem__(self, key, value, **kwargs)  # type: ignore
         if self._max_size and len(self) > self._max_size:
             self.popitem(last=False)
 

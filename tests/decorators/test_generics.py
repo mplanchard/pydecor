@@ -7,27 +7,41 @@ from __future__ import absolute_import, unicode_literals
 
 
 import typing as t
-from logging import getLogger
-from inspect import isfunction
-from sys import version_info
-from time import sleep
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
 import pytest
 
-from pydecor.caches import FIFOCache, LRUCache, TimedCache
-from pydecor.constants import LOG_CALL_FMT_STR
 from pydecor.decorators import (
     after,
     before,
-    log_call,
     construct_decorator,
     decorate,
     Decorated,
     instead,
-    intercept,
-    memoize,
 )
+
+
+class TestDecorated:
+    """Test the Decorated wrapper."""
+
+    def test_str(self):
+        """The __name__ is included in the string."""
+        assert "TestDecorated" in str(Decorated(self.__class__, (), {}))
+
+    def test_call(self):
+        """Calling gets the original result."""
+        assert Decorated(lambda: 1, (), {})() == 1
+
+    def test_call_sets_result(self):
+        """Calling gets the original result."""
+        decorated = Decorated(lambda: 1, (), {})
+        assert decorated() == 1
+        assert decorated.result == 1
+
+    def test_immutable(self):
+        """Decorated objects are immutable."""
+        with pytest.raises(AttributeError):
+            Decorated(lambda: None, (), {}).result = "bar"
 
 
 class TestBefore:
@@ -36,7 +50,7 @@ class TestBefore:
     def test_before_no_ret(self):
         """A before decorator with no return does not replace inbound args."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> None:
             # Ensure this happens before the wrapped call.
@@ -55,7 +69,7 @@ class TestBefore:
     def test_before_ret(self):
         """A before decorator's return, if present, replaces inbound args."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> t.Tuple[tuple, dict]:
             # Ensure this happens before the wrapped call.
@@ -75,7 +89,7 @@ class TestBefore:
     def test_before_receives_kwargs(self):
         """Any kwargs are passed to the callable."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated, extra=None) -> None:
             # Ensure this happens before the wrapped call.
@@ -94,7 +108,7 @@ class TestBefore:
     def test_before_implicit_instancemethod(self):
         """Before implicitly decorates instancemethods."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> None:
             # Ensure this happens before the wrapped call.
@@ -114,7 +128,7 @@ class TestBefore:
     def test_before_implicit_classmethod(self):
         """Before implicitly decorates classmethods."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> None:
             # Ensure this happens before the wrapped call.
@@ -135,7 +149,7 @@ class TestBefore:
     def test_before_implicit_staticmethod(self):
         """Before implicitly decorates staticmethods."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> None:
             # Ensure this happens before the wrapped call.
@@ -156,7 +170,7 @@ class TestBefore:
     def test_before_implicit_instancemethod_instace_only(self):
         """Instance methods can be decorated in isolation."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> None:
             # Ensure this happens before the wrapped call.
@@ -176,7 +190,7 @@ class TestBefore:
     def test_before_implicit_classmethod_instance_only(self):
         """Instance methods can be decorated in isolation."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> None:
             # Ensure this happens before the wrapped call.
@@ -196,7 +210,7 @@ class TestBefore:
     def test_before_implicit_staticmethod_instance_only(self):
         """Instance methods can be decorated in isolation."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> None:
             # Ensure this happens before the wrapped call.
@@ -214,9 +228,9 @@ class TestBefore:
         assert tracker[0] == {2: (1, 2)}
 
     def test_before_method_decorates_class_if_not_implicit(self):
-        """WIthout implicit method decoration, the class init is decorated."""
+        """Without implicit method decoration, the class init is decorated."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> None:
             # Ensure this happens before the wrapped call.
@@ -254,7 +268,7 @@ class TestBefore:
     def test_before_decorates_on_class_references(self):
         """Decorating class and staticmethods applies to the class ref."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> None:
             # Ensure this happens before the wrapped call.
@@ -282,7 +296,7 @@ class TestBefore:
     def test_before_direct_method_decoration_equivalent(self):
         """Direct and implicit decoration work the same way."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_before(decorated: Decorated) -> None:
             # Ensure this happens before the wrapped call.
@@ -322,7 +336,7 @@ class TestAfter:
     def test_after_no_ret(self):
         """A after decorator with no return does not affect teh return value."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> None:
             # Ensure this happens after the wrapped call.
@@ -342,7 +356,7 @@ class TestAfter:
     def test_after_ret(self):
         """A after decorator's return, if present, replaces fn return."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> int:
             # Ensure this happens after the wrapped call.
@@ -363,7 +377,7 @@ class TestAfter:
     def test_after_receives_kwargs(self):
         """Any kwargs are passed to the callable."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated, extra=None) -> None:
             # Ensure this happens after the wrapped call.
@@ -382,7 +396,7 @@ class TestAfter:
     def test_after_implicit_instancemethod(self):
         """Before implicitly decorates instancemethods."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> None:
             # Ensure this happens after the wrapped call.
@@ -402,7 +416,7 @@ class TestAfter:
     def test_after_implicit_classmethod(self):
         """Before implicitly decorates classmethods."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> None:
             # Ensure this happens after the wrapped call.
@@ -423,7 +437,7 @@ class TestAfter:
     def test_after_implicit_staticmethod(self):
         """Before implicitly decorates staticmethods."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> None:
             # Ensure this happens after the wrapped call.
@@ -444,7 +458,7 @@ class TestAfter:
     def test_after_implicit_instancemethod_instace_only(self):
         """Instance methods can be decorated in isolation."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> None:
             # Ensure this happens after the wrapped call.
@@ -464,7 +478,7 @@ class TestAfter:
     def test_after_implicit_classmethod_instance_only(self):
         """Instance methods can be decorated in isolation."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> None:
             # Ensure this happens after the wrapped call.
@@ -484,7 +498,7 @@ class TestAfter:
     def test_after_implicit_staticmethod_instance_only(self):
         """Instance methods can be decorated in isolation."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> None:
             # Ensure this happens after the wrapped call.
@@ -502,9 +516,9 @@ class TestAfter:
         assert tracker[0] == {2: (1, 2)}
 
     def test_after_method_decorates_class_if_not_implicit(self):
-        """WIthout implicit method decoration, the class init is decorated."""
+        """Without implicit method decoration, the class init is decorated."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> None:
             # Ensure this happens after the wrapped call.
@@ -543,7 +557,7 @@ class TestAfter:
     def test_after_decorates_on_class_references(self):
         """Decorating class and staticmethods applies to the class ref."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> None:
             # Ensure this happens after the wrapped call.
@@ -571,7 +585,7 @@ class TestAfter:
     def test_after_direct_method_decoration_equivalent(self):
         """Direct and implicit decoration work the same way."""
 
-        tracker = []
+        tracker: t.List[dict] = []
 
         def to_call_after(decorated: Decorated) -> None:
             # Ensure this happens after the wrapped call.
@@ -605,6 +619,540 @@ class TestAfter:
         assert tracker[5] == {1: (5, 6)}
 
 
+class TestInstead:
+    """Test generic decorators."""
+
+    def test_instead_no_call(self):
+        """A instead decorator is called in place of the decorated fn."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> int:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: decorated.args})
+            return 1
+
+        @instead(to_call_instead)
+        def to_call(*args):
+            tracker.append({2: args})
+            return 0
+
+        assert to_call(1, 2) == 1
+
+        assert len(tracker) == 1
+        assert tracker[0] == {1: (1, 2)}
+
+    def test_instead_calls(self):
+        """The decorated function must be called manually."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> int:
+            # Ensure this happens instead the wrapped call.
+            decorated(*decorated.args, **decorated.kwargs)
+            tracker.append({1: decorated.result})
+            return 1
+
+        @instead(to_call_instead)
+        def to_call(*args):
+            tracker.append({2: args})
+            return 0
+
+        assert to_call(1, 2) == 1
+
+        assert len(tracker) == 2
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: 0}
+
+    def test_instead_receives_kwargs(self):
+        """Any kwargs are passed to the callable."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated, extra=None) -> None:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: (decorated.args, extra)})
+
+        @instead(to_call_instead, extra="read_all_about_it")
+        def to_call(*args):
+            tracker.append({2: args})
+
+        to_call(1, 2)
+
+        assert len(tracker) == 1
+        assert tracker[0] == {1: ((1, 2), "read_all_about_it")}
+
+    def test_instead_implicit_instancemethod(self):
+        """Before implicitly decorates instancemethods."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> None:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @instead(to_call_instead)
+        class _ToDecorate:
+            def to_call(self, *args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 1
+        assert tracker[0] == {1: (1, 2)}
+
+    def test_instead_implicit_classmethod(self):
+        """Before implicitly decorates classmethods."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> None:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @instead(to_call_instead)
+        class _ToDecorate:
+            @classmethod
+            def to_call(cls, *args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 1
+        assert tracker[0] == {1: (1, 2)}
+
+    def test_instead_implicit_staticmethod(self):
+        """Before implicitly decorates staticmethods."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> None:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @instead(to_call_instead)
+        class _ToDecorate:
+            @staticmethod
+            def to_call(*args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 1
+        assert tracker[0] == {1: (1, 2)}
+
+    def test_instead_implicit_instancemethod_instace_only(self):
+        """Instance methods can be decorated in isolation."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> None:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @instead(to_call_instead, instance_methods_only=True)
+        class _ToDecorate:
+            def to_call(self, *args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 1
+        assert tracker[0] == {1: (1, 2)}
+
+    def test_instead_implicit_classmethod_instance_only(self):
+        """Instance methods can be decorated in isolation."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> None:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @instead(to_call_instead, instance_methods_only=True)
+        class _ToDecorate:
+            @classmethod
+            def to_call(cls, *args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 1
+        assert tracker[0] == {2: (1, 2)}
+
+    def test_instead_implicit_staticmethod_instance_only(self):
+        """Instance methods can be decorated in isolation."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> None:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @instead(to_call_instead, instance_methods_only=True)
+        class _ToDecorate:
+            @staticmethod
+            def to_call(*args):
+                tracker.append({2: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 1
+        assert tracker[0] == {2: (1, 2)}
+
+    def test_instead_method_decorates_class_if_not_implicit(self):
+        """Without implicit method decoration, the class init is decorated."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> t.Any:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: decorated.args})
+            return decorated(*decorated.args, **decorated.kwargs)
+
+        @instead(to_call_instead, implicit_method_decoration=False)
+        class _ToDecorate:
+            def __init__(self):
+                super().__init__()
+                tracker.append({0: ()})
+
+            def to_call(self, *args):
+                tracker.append({2: args})
+
+            @classmethod
+            def to_call_cls(cls, *args):
+                tracker.append({3: args})
+
+            @staticmethod
+            def to_call_static(*args):
+                tracker.append({4: args})
+
+        to_decorate = _ToDecorate()
+
+        to_decorate.to_call(3, 4)
+        to_decorate.to_call_cls(3, 4)
+        to_decorate.to_call_static(3, 4)
+
+        assert len(tracker) == 5
+        assert tracker[0] == {1: ()}
+        assert tracker[1] == {0: ()}
+        assert tracker[2] == {2: (3, 4)}
+        assert tracker[3] == {3: (3, 4)}
+        assert tracker[4] == {4: (3, 4)}
+
+    def test_instead_decorates_on_class_references(self):
+        """Decorating class and staticmethods applies to the class ref."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> None:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: decorated.args})
+
+        @instead(to_call_instead)
+        class _ToDecorate:
+            @classmethod
+            def to_call_cls(cls, *args):
+                tracker.append({2: args})
+
+            @staticmethod
+            def to_call_static(*args):
+                tracker.append({3: args})
+
+        _ToDecorate.to_call_cls(1, 2)
+        _ToDecorate.to_call_static(3, 4)
+
+        assert len(tracker) == 2
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {1: (3, 4)}
+
+    def test_instead_direct_method_decoration_equivalent(self):
+        """Direct and implicit decoration work the same way."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated) -> None:
+            # Ensure this happens instead the wrapped call.
+            tracker.append({1: decorated.args})
+
+        class _ToDecorate:
+            @instead(to_call_instead)
+            def to_call(self, *args):
+                tracker.append({2: args})
+
+            @classmethod
+            @instead(to_call_instead)
+            def to_call_cls(cls, *args):
+                tracker.append({3: args})
+
+            @staticmethod
+            @instead(to_call_instead)
+            def to_call_static(*args):
+                tracker.append({4: args})
+
+        _ToDecorate().to_call(1, 2)
+        _ToDecorate().to_call_cls(3, 4)
+        _ToDecorate().to_call_static(5, 6)
+
+        assert len(tracker) == 3
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {1: (3, 4)}
+        assert tracker[2] == {1: (5, 6)}
+
+
+class TestDecorator:
+    """Test the generic before/after/instead decorator."""
+
+    def test_all_decorators(self):
+        """Test adding one of each decorator type."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_before(decorated: Decorated):
+            tracker.append({1: decorated.args})
+
+        def to_call_after(decorated: Decorated):
+            tracker.append({2: decorated.args})
+
+        def to_call_instead(decorated: Decorated):
+            tracker.append({3: decorated.args})
+            return decorated(*decorated.args, **decorated.kwargs)
+
+        @decorate(
+            before=to_call_before, after=to_call_after, instead=to_call_instead
+        )
+        def to_call(*args):
+            tracker.append({4: args})
+
+        to_call(1, 2)
+
+        assert len(tracker) == 4
+        assert tracker[0] == {1: (1, 2)}  # before
+        assert tracker[1] == {3: (1, 2)}  # instead
+        assert tracker[2] == {4: (1, 2)}  # wrapped
+        assert tracker[3] == {2: (1, 2)}  # after
+
+    def test_all_decorators_constructed(self):
+        """A decorator can be "pre-made" if needed"""
+
+        tracker: t.List[dict] = []
+
+        def to_call_before(decorated: Decorated):
+            tracker.append({1: decorated.args})
+
+        def to_call_after(decorated: Decorated):
+            tracker.append({2: decorated.args})
+
+        def to_call_instead(decorated: Decorated):
+            tracker.append({3: decorated.args})
+            return decorated(*decorated.args, **decorated.kwargs)
+
+        pre_made = construct_decorator(
+            before=to_call_before, after=to_call_after, instead=to_call_instead
+        )
+
+        @pre_made()
+        def to_call(*args):
+            tracker.append({4: args})
+
+        to_call(1, 2)
+
+        assert len(tracker) == 4
+        assert tracker[0] == {1: (1, 2)}  # before
+        assert tracker[1] == {3: (1, 2)}  # instead
+        assert tracker[2] == {4: (1, 2)}  # wrapped
+        assert tracker[3] == {2: (1, 2)}  # after
+
+    def test_all_callables_get_extras(self):
+        """All of the callables get extra kwargs."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_before(decorated: Decorated, kwarg=None):
+            tracker.append({1: kwarg})
+
+        def to_call_after(decorated: Decorated, kwarg=None):
+            tracker.append({2: kwarg})
+
+        def to_call_instead(decorated: Decorated, kwarg=None):
+            tracker.append({3: kwarg})
+            return decorated(*decorated.args, **decorated.kwargs)
+
+        @decorate(
+            before=to_call_before,
+            after=to_call_after,
+            instead=to_call_instead,
+            kwarg=0,
+        )
+        def to_call(*args):
+            tracker.append({4: args})
+
+        to_call(1, 2)
+
+        assert len(tracker) == 4
+        assert tracker[0] == {1: 0}  # before
+        assert tracker[1] == {3: 0}  # instead
+        assert tracker[2] == {4: (1, 2)}  # wrapped
+        assert tracker[3] == {2: 0}  # after
+
+    def test_all_callables_get_specific_extras(self):
+        """Specific extras are passed appropriately."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_before(decorated: Decorated, kwarg=None):
+            tracker.append({1: kwarg})
+
+        def to_call_after(decorated: Decorated, kwarg=None):
+            tracker.append({2: kwarg})
+
+        def to_call_instead(decorated: Decorated, kwarg=None):
+            tracker.append({3: kwarg})
+            return decorated(*decorated.args, **decorated.kwargs)
+
+        @decorate(
+            before=to_call_before,
+            before_kwargs={"kwarg": 0},
+            after=to_call_after,
+            after_kwargs={"kwarg": 1},
+            instead=to_call_instead,
+            instead_kwargs={"kwarg": 2},
+        )
+        def to_call(*args):
+            tracker.append({4: args})
+
+        to_call(1, 2)
+
+        assert len(tracker) == 4
+        assert tracker[0] == {1: 0}  # before
+        assert tracker[1] == {3: 2}  # instead
+        assert tracker[2] == {4: (1, 2)}  # wrapped
+        assert tracker[3] == {2: 1}  # after
+
+    def test_all_callables_specific_extras_overridden(self):
+        """General kwargs override specific ones."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_before(decorated: Decorated, kwarg=None):
+            tracker.append({1: kwarg})
+
+        def to_call_after(decorated: Decorated, kwarg=None):
+            tracker.append({2: kwarg})
+
+        def to_call_instead(decorated: Decorated, kwarg=None):
+            tracker.append({3: kwarg})
+            return decorated(*decorated.args, **decorated.kwargs)
+
+        @decorate(
+            before=to_call_before,
+            before_kwargs={"kwarg": 0},
+            after=to_call_after,
+            after_kwargs={"kwarg": 1},
+            instead=to_call_instead,
+            instead_kwargs={"kwarg": 2},
+            kwarg=3,
+        )
+        def to_call(*args):
+            tracker.append({4: args})
+
+        to_call(1, 2)
+
+        assert len(tracker) == 4
+        assert tracker[0] == {1: 3}  # before
+        assert tracker[1] == {3: 3}  # instead
+        assert tracker[2] == {4: (1, 2)}  # wrapped
+        assert tracker[3] == {2: 3}  # after
+
+    def test_just_before(self):
+        """Test adding just before()."""
+        tracker: t.List[dict] = []
+
+        def to_call_before(decorated: Decorated):
+            tracker.append({1: decorated.args})
+
+        @decorate(before=to_call_before)
+        def to_call(*args):
+            tracker.append({2: args})
+
+        to_call(1, 2)
+
+        assert len(tracker) == 2
+        assert tracker[0] == {1: (1, 2)}
+        assert tracker[1] == {2: (1, 2)}
+
+    def test_just_after(self):
+        """Test adding just after()."""
+        tracker: t.List[dict] = []
+
+        def to_call_after(decorated: Decorated):
+            tracker.append({1: decorated.args})
+
+        @decorate(after=to_call_after)
+        def to_call(*args):
+            tracker.append({2: args})
+
+        to_call(1, 2)
+
+        assert len(tracker) == 2
+        assert tracker[0] == {2: (1, 2)}
+        assert tracker[1] == {1: (1, 2)}
+
+    def test_just_instead(self):
+        """Test adding just instead()."""
+        tracker: t.List[dict] = []
+
+        def to_call_instead(decorated: Decorated):
+            tracker.append({1: decorated.args})
+
+        @decorate(instead=to_call_instead)
+        def to_call(*args):
+            tracker.append({2: args})
+
+        to_call(1, 2)
+
+        assert len(tracker) == 1
+        assert tracker[0] == {1: (1, 2)}
+
+    def test_all_decorators_implicit_class(self):
+        """Test adding one of each decorator type to a class."""
+
+        tracker: t.List[dict] = []
+
+        def to_call_before(decorated: Decorated):
+            tracker.append({1: decorated.args})
+
+        def to_call_after(decorated: Decorated):
+            tracker.append({2: decorated.args})
+
+        def to_call_instead(decorated: Decorated):
+            tracker.append({3: decorated.args})
+            return decorated(*decorated.args, **decorated.kwargs)
+
+        @decorate(
+            before=to_call_before, after=to_call_after, instead=to_call_instead
+        )
+        class _ToDecorate:
+            def to_call(self, *args):
+                tracker.append({4: args})
+
+        _ToDecorate().to_call(1, 2)
+
+        assert len(tracker) == 4
+        assert tracker[0] == {1: (1, 2)}  # before
+        assert tracker[1] == {3: (1, 2)}  # instead
+        assert tracker[2] == {4: (1, 2)}  # wrapped
+        assert tracker[3] == {2: (1, 2)}  # after
+
+    def test_at_least_one_callable_must_be_specified(self):
+        """Not specifying any callables does not work."""
+        with pytest.raises(ValueError):
+
+            @decorate()
+            def _fn():
+                pass
+
+
 @pytest.mark.parametrize("decorator", [before, after, instead])
 def test_extras_persistence(decorator):
     """Test the persistence across calls of extras"""
@@ -612,7 +1160,7 @@ def test_extras_persistence(decorator):
     def memo_func(_decorated, memo):
         memo.append("called")
 
-    memo = []
+    memo: list = []
 
     decorated = Mock(return_value=None)
 
@@ -633,7 +1181,7 @@ def test_extras_persistence_class(decorator):
     def memo_func(_decorated, memo):
         memo.append("called")
 
-    memo = []
+    memo: list = []
 
     @decorator(
         memo_func, memo=memo,
@@ -691,7 +1239,7 @@ def test_extras_persistence_class_inst_only(decorator):
     def memo_func(_decorated, memo):
         memo.append("called")
 
-    memo = []
+    memo: list = []
 
     @decorator(
         memo_func, instance_methods_only=True, memo=memo,
@@ -740,238 +1288,3 @@ def test_extras_persistence_class_inst_only(decorator):
         gc.stately_method()
 
     assert len(memo) == 2
-
-
-@pytest.mark.parametrize(
-    "raises, catch, reraise, include_handler",
-    [
-        (Exception, Exception, ValueError, False),
-        (Exception, Exception, ValueError, True),
-        (Exception, Exception, True, True),
-        (Exception, Exception, True, False),
-        (None, Exception, ValueError, False),
-        (None, Exception, ValueError, True),
-        (Exception, Exception, None, False),
-        (Exception, Exception, None, True),
-        (Exception, RuntimeError, ValueError, False),  # won't catch
-        (Exception, RuntimeError, ValueError, True),  # won't catch
-    ],
-)
-def test_intercept(raises, catch, reraise, include_handler):
-    """Test the intercept decorator"""
-    wrapped = Mock()
-
-    wrapped.__name__ = str("wrapped")
-
-    if raises is not None:
-        wrapped.side_effect = raises
-
-    handler = Mock(name="handler") if include_handler else None
-
-    if handler is not None:
-        handler.__name__ = str("handler")
-
-    fn = intercept(catch=catch, reraise=reraise, handler=handler)(wrapped)
-
-    will_catch = raises and issubclass(raises, catch)
-
-    if reraise and will_catch:
-        to_be_raised = raises if reraise is True else reraise
-        with pytest.raises(to_be_raised):
-            fn()
-    elif raises and not will_catch:
-        with pytest.raises(raises):
-            fn()
-    else:
-        fn()
-
-    if handler is not None and will_catch:
-        called_with = handler.call_args[0][0]
-        assert isinstance(called_with, raises)
-
-    if handler is not None and not will_catch:
-        handler.assert_not_called()
-
-    wrapped.assert_called_once_with(*(), **{})
-
-
-def test_log_call():
-    """Test the log_call decorator"""
-    exp_logger = getLogger(__name__)
-    exp_logger.debug = Mock()
-
-    @log_call(level="debug")
-    def func(*args, **kwargs):
-        return "foo"
-
-    call_args = ("a",)
-    call_kwargs = {"b": "c"}
-
-    call_res = func(*call_args, **call_kwargs)
-
-    exp_msg = LOG_CALL_FMT_STR.format(
-        name="func", args=call_args, kwargs=call_kwargs, result=call_res
-    )
-
-    exp_logger.debug.assert_called_once_with(exp_msg)
-
-
-class TestMemoization:
-    """Tests for memoization"""
-
-    # (args, kwargs)
-    memoizable_calls = (
-        (("a", "b"), {"c": "d"}),
-        ((["a", "b", "c"],), {"c": "d"}),
-        ((lambda x: "foo",), {"c": lambda y: "bar"}),
-        (({"a": "a"},), {"c": "d"}),
-        ((type(str("A"), (object,), {})(),), {}),
-        ((), {}),
-        ((1, 2, 3), {}),
-    )
-
-    @pytest.mark.parametrize("args, kwargs", memoizable_calls)
-    def test_memoize_basic(self, args, kwargs):
-        """Test basic use of the memoize decorator"""
-        tracker = Mock(return_value="foo")
-
-        @memoize()
-        def func(*args, **kwargs):
-            return tracker(args, kwargs)
-
-        assert func(*args, **kwargs) == "foo"
-        tracker.assert_called_once_with(args, kwargs)
-
-        assert func(*args, **kwargs) == "foo"
-        assert len(tracker.mock_calls) == 1
-
-    def test_memoize_lru(self):
-        """Test removal of least-recently-used items"""
-        call_list = tuple(range(5))  # 0-4
-        tracker = Mock()
-
-        @memoize(keep=5, cache_class=LRUCache)
-        def func(val):
-            tracker(val)
-            return val
-
-        for val in call_list:
-            func(val)
-
-        # LRU: 0 1 2 3 4
-        assert len(tracker.mock_calls) == len(call_list)
-        for val in call_list:
-            assert call(val) in tracker.mock_calls
-
-        # call with all the same args
-        for val in call_list:
-            func(val)
-
-        # no new calls, lru order should be same
-        # LRU: 0 1 2 3 4
-        assert len(tracker.mock_calls) == len(call_list)
-        for val in call_list:
-            assert call(val) in tracker.mock_calls
-
-        # add new value, popping least-recently-used (0)
-        # LRU: 1 2 3 4 5
-        func(5)
-        assert len(tracker.mock_calls) == len(call_list) + 1
-        assert tracker.mock_calls[-1] == call(5)  # most recent call
-
-        # Re-call with 0, asserting that we call the func again,
-        # and dropping 1
-        # LRU: 2 3 4 5 0
-        func(0)
-        assert len(tracker.mock_calls) == len(call_list) + 2
-        assert tracker.mock_calls[-1] == call(0)  # most recent call
-
-        # Let's ensure that using something rearranges it
-        func(2)
-        # LRU: 3 4 5 0 2
-        # no new calls
-        assert len(tracker.mock_calls) == len(call_list) + 2
-        assert tracker.mock_calls[-1] == call(0)  # most recent call
-
-        # Let's put another new value into the cache
-        func(6)
-        # LRU: 4 5 0 2 6
-        assert len(tracker.mock_calls) == len(call_list) + 3
-        assert tracker.mock_calls[-1] == call(6)
-
-        # Assert that 2 hasn't been dropped from the list, like it
-        # would have been if we hadn't called it before 6
-        func(2)
-        # LRU: 4 5 0 6 2
-        assert len(tracker.mock_calls) == len(call_list) + 3
-        assert tracker.mock_calls[-1] == call(6)
-
-    def test_memoize_fifo(self):
-        """Test using the FIFO cache"""
-        call_list = tuple(range(5))  # 0-4
-        tracker = Mock()
-
-        @memoize(keep=5, cache_class=FIFOCache)
-        def func(val):
-            tracker(val)
-            return val
-
-        for val in call_list:
-            func(val)
-
-        # Cache: 0 1 2 3 4
-        assert len(tracker.mock_calls) == len(call_list)
-        for val in call_list:
-            assert call(val) in tracker.mock_calls
-
-        # call with all the same args
-        for val in call_list:
-            func(val)
-
-        # no new calls, cache still the same
-        # Cache: 0 1 2 3 4
-        assert len(tracker.mock_calls) == len(call_list)
-        for val in call_list:
-            assert call(val) in tracker.mock_calls
-
-        # add new value, popping first in (0)
-        # Cache: 1 2 3 4 5
-        func(5)
-        assert len(tracker.mock_calls) == len(call_list) + 1
-        assert tracker.mock_calls[-1] == call(5)  # most recent call
-
-        # Assert 5 doesn't yield a new call
-        func(5)
-        assert len(tracker.mock_calls) == len(call_list) + 1
-        assert tracker.mock_calls[-1] == call(5)  # most recent call
-
-        # Re-call with 0, asserting that we call the func again,
-        # and dropping 1
-        # Cache: 2 3 4 5 0
-        func(0)
-        assert len(tracker.mock_calls) == len(call_list) + 2
-        assert tracker.mock_calls[-1] == call(0)  # most recent call
-
-        # Assert neither 0 nor 5 yield new calls
-        func(0)
-        func(5)
-        assert len(tracker.mock_calls) == len(call_list) + 2
-        assert tracker.mock_calls[-1] == call(0)  # most recent call
-
-    def test_memoization_timed(self):
-        """Test timed memoization"""
-        time = 0.005
-        tracker = Mock()
-
-        @memoize(keep=time, cache_class=TimedCache)
-        def func(val):
-            tracker(val)
-            return val
-
-        assert func(1) == 1
-        assert tracker.mock_calls == [call(1)]
-        assert func(1) == 1
-        assert tracker.mock_calls == [call(1)]
-        sleep(time)
-        assert func(1) == 1
-        assert tracker.mock_calls == [call(1), call(1)]

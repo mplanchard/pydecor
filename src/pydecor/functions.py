@@ -85,8 +85,9 @@ def log_call(decorated, logger=None, level="info", format_str=LOG_CALL_FMT_STR):
         log level, case-insensitive
     :param format_str: the string to use when formatting the results
     """
+    module = getmodule(decorated.wrapped)
     if logger is None:
-        name = getmodule(decorated.wrapped).__name__
+        name = module.__name__ if module is not None else "__main__"
         logger = getLogger(name)
     log_fn = getattr(logger, level.lower())
     msg = format_str.format(

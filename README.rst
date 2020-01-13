@@ -30,54 +30,6 @@ developers can stop worrying about closures and syntax in triply nested
 functions and instead get down to decorating!
 
 
-IMPORTANT: Upcoming Backwards Incompatible Changes
---------------------------------------------------
-
-Version 2.0.0 will make some changes to the call signatures for functions
-passed to ``@before``, ``@after``, ``@instead``, ``@decorate``, and
-``construct_decorator``, as well as to the call signatures to the
-decorators themselves.
-
-Specifically, rather than defaulting the call signature to some subset
-of decorated function args, kwargs, result, and the decorated function
-itself and allowing overrides with keyword arguments
-to the decorator like ``pass_params``, all functions passed to ``@before``,
-``@after``, and ``@instead`` will receive an immutable ``Decorated``
-object, which will have ``args``, ``kwargs``, ``wrapped``, and ``result``
-attributes, and which will support direct calls as though it were the
-decorated function/method/class. The aim of this is to make writing functions
-to pass to the decorators more intuitive, but it will require some minor
-re-writing of passed functions.
-
-You can experiment with this syntax and prepare for the cut-over right away
-by passing ``_use_future_syntax=True`` to any of your generic decorators
-(``@after``, ``@before``, etc.) or to ``construct_decorator``. See the below
-snippet to illustrate basic use of the new ``Decorated`` object:
-
-.. code:: python
-
-    from pydecor import after, Decorated
-
-    def after_func(decorated: Decorated, extra_kwarg=None):
-        """A function to be called after the decorated function"""
-        assert decorated.args == ('foo', )
-        assert decorated.kwargs == {'bar': 'bar'}
-        assert decorated.result == 'baz'
-        assert extra_kwarg == 'extra_kwarg'
-
-
-    @after(after_func, extra_kwarg='extra_kwarg')
-    def some_function('foo', bar='bar'):
-      """A function that returns 'baz'"""
-      return 'baz'
-
-All of the builtin non-generic decorators (``@memoize``, ``@intercept``,
-and ``@log_call``) are already using the future syntax, so feel free
-to look at those for more examples.
-
-See the API docs for more information.
-
-
 .. contents:: Table of Contents
 
 
@@ -142,15 +94,18 @@ which sets a User-Agent header on a Flask response:
 .. code:: python
 
     from flask import Flask, make_response
-    from pydecor import after
+    from pydecor import Decorated, after
 
 
     app = Flask(__name__)
 
+   # `Decorated` instances are passed to your functions and contain
+   # information about the wrapped function, including its `args`,
+   # `kwargs`, and `result`, if it's been called.
 
-    def set_user_agent(view_result):
+    def set_user_agent(decorated: Decorated):
         """Sets the user-agent header on a result from a view"""
-        resp = make_response(view_result)
+        resp = make_response(decorated.result)
         resp.headers.set('User-Agent', 'my_applicatoin')
         return resp
 
@@ -170,13 +125,13 @@ Or make your own decorator with ``construct_decorator``
 
 .. code:: python
 
-    from flask import request
-    from pydecor import construct_decorator
+    from flask import reques
+    from pydecor import Decorated, construct_decorator
     from werkzeug.exceptions import Unauthorized
 
 
-    def check_auth(request):
-        """Theoretically checks auth
+    def check_auth(_decorated: Decorated, request):
+        """Theoretically checks auth.
 
         It goes without saying, but this is example code. You should
         not actually check auth this way!
@@ -192,6 +147,8 @@ Or make your own decorator with ``construct_decorator``
 
 
     @app.route('/')
+    # Any keyword arguments provided to any of the generic decorators are
+    # passed directly to your callable.
     @authed(request=request)
     def some_view():
         """An authenticated view"""
@@ -239,7 +196,7 @@ Why PyDecor?
     from werkzeug.exceptions import Unauthorized
     from my_pkg.auth import authorize_request
 
-    def check_auth(request=request):
+    def check_auth(_decorated, request=request):
         """Ensure the request is authorized"""
         if not authorize_request(request):
           raise Unauthorized('Not authorized!')
@@ -320,7 +277,9 @@ Why PyDecor?
 Installation
 ------------
 
-Supported Python versions are 2.7 and 3.4+
+**`pydecor` 2.0 and forward supports only Python 3.6+!**
+
+If you need support for an older Python, use the most recent 1.x release.
 
 To install `pydecor`, simply run::
 
@@ -357,17 +316,15 @@ Generics
 
 * ``@before`` - run a callable before the decorated function executes
 
-  * by default called with no arguments other than extras
+  * called with an instance of `Decorated` and any provided kwargs
 
 * ``@after`` - run a callable after the decorated function executes
 
-  * by default called with the result of the decorated function and any
-    extras
+  * called with an instance of `Decorated` and any provided kwargs
 
 * ``@instead`` - run a callable in place of the decorated function
 
-  * by default called with the args and kwargs to the decorated function,
-    along with a reference to the function itself
+  * called with an instance of `Decorated` and any provided kwargs
 
 * ``@decorate`` - specify multiple callables to be run before, after, and/or
   instead of the decorated function
@@ -375,25 +332,20 @@ Generics
   * callables passed to ``decorate``'s ``before``, ``after``, or ``instead``
     keyword arguments will be called with the same default function signature
     as described for the individual decorators, above. Extras will be
-    passed to all provided callables
+    passed to all provided callables.
 
 * ``construct_decorator`` - specify functions to be run ``before``, ``after``,
-  or ``instead``. Returns a reusable generator.
-
-  * in addition to ``before``, ``after``, and ``instead``, which receive
-    callables, ``before_opts``, ``after_opts``, and ``instead_opts`` dicts
-    may be passed to ``construct_decorator``, and they will apply in the same
-    way as their respective decorator parameters
+  or ``instead`` of decorated functions. Returns a reusable decorator.
 
 Every generic decorator takes any number of keyword arguments, which will be
-passed directly into the provided callable, unless ``unpack_extras`` is False
-(see below), so, running the code below prints "red":
+passed directly into the provided callable, so, running the code below prints
+"red":
 
 .. code:: python
 
     from pydecor import before
 
-    def before_func(label=None):
+    def before_func(_decorated, label=None):
         print(label)
 
     @before(before_func, label='red')
@@ -404,23 +356,12 @@ passed directly into the provided callable, unless ``unpack_extras`` is False
 
 Every generic decorator takes the following keyword arguments:
 
-* ``pass_params`` - if True, passes the args and kwargs, as a tuple and
-  a dict, respectively, from the decorated function to the provided callable
-* ``pass_decorated`` - if True, passes a reference to the decorated function
-  to the provided callable
 * ``implicit_method_decoration`` - if True, decorating a class implies
   decorating all of its methods. **Caution:** you should probably leave this
   on unless you know what you are doing.
 * ``instance_methods_only`` - if True, only instance methods (not class or
   static methods) will be automatically decorated when
   ``implicit_method_decoration`` is True
-* ``unpack_extras`` - if True, extras are unpacked into the provided callable.
-  If False, extras are placed into a dictionary on ``extras_key``, which
-  is passed into the provided callable.
-* ``extras_key`` - the keyword to use when passing extras into the provided
-  callable if ``unpack_extras`` is False
-* ``_use_future_syntax`` - See the note at the top on backwards incompatible
-  changes in version 2.0.0.
 
 The ``construct_decorator`` function can be used to combine ``@before``,
 ``@after``, and ``@instead`` calls into one decorator, without having to
@@ -431,21 +372,16 @@ decorator that announces when we're starting an exiting a function:
 
     from pydecor import construct_decorator
 
-    def before_func(decorated_func):
+    def before_func(decorated):
         print('Starting decorated function '
-              '"{}"'.format(decorated_func.__name__))
+              '"{}"'.format(decorated.wrapped.__name__))
 
-    def after_func(decorated_result, decorated_func):
+    def after_func(decorated):
         print('"{}" gave result "{}"'.format(
-            decorated_func.__name__, decorated_result
+            decorated.wrapped.__name__, decorated.result
         ))
 
-    my_decorator = construct_decorator(
-        before=before_func,
-        after=after_func,
-        before_opts={'pass_decorated': True},
-        after_opts={'pass_decorated': True},
-    )
+    my_decorator = construct_decorator(before=before_func, after=after_func)
 
     @my_decorator()
     def this_function_returns_nothing():
@@ -469,10 +405,10 @@ headers to a Flask response.
     from pydecor import construct_decorator
 
 
-    def _set_app_json_header(response):
+    def _set_app_json_header(decorated):
         # Ensure the response is a Response object, even if a tuple was
         # returned by the view function.
-        response = make_response(response)
+        response = make_response(decorated.result)
         response.headers.set('Content-Type', 'application/json')
         return response
 
@@ -510,6 +446,8 @@ The output?
 Prête-à-porter (ready-to-wear)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+* ``export`` - add the decorated class or function to its module's `__all__`
+  list, exposing it as a "public" reference.
 * ``intercept`` - catch the specified exception and optionally re-raise and/or
   call a provided callback to handle the exception
 * ``log_call`` - automatically log the decorated function's call signature and
@@ -518,15 +456,12 @@ Prête-à-porter (ready-to-wear)
   use any cache in ``pydecor.caches``, which all have options for automatic
   pruning to keep the memoization cache from growing too large.
 
-**More to come!!** See Roadmap_ for more details on upcoming features
-
-
 Caches
 ******
 
 Three caches are provided with ``pydecor``. These are designed to be passed
 to the ``@memoization`` decorator if you want to use something other than
-the default ``LRUCache``, but they are perfectly functional for use elesewhere.
+the default ``LRUCache``, but they are perfectly functional for use elsewhere.
 
 All caches implement the standard dictionary interface.
 
@@ -555,19 +490,19 @@ removed upon access.
 Stacking
 ********
 
-Generic and convenience decorators may be stacked! You can stack multiple
+Generic and ready-to-wear decorators may be stacked! You can stack multiple
 of the same decorator, or you can mix and match. Some gotchas are listed
 below.
 
-Generally, staciking works just as you might expect, but some care must be
+Generally, stacking works just as you might expect, but some care must be
 taken when using the ``@instead`` decorator, or ``@intercept``, which
 uses ``@instead`` under the hood.
 
 Just remember that ``@instead`` replaces everything that comes before. So,
-if long as ``@instead`` calls the decorated function, it's okay to stack it.
+as long as ``@instead`` calls the decorated function, it's okay to stack it.
 In these cases, it will be called *before* any decorators specified below
 it, and those decorators will be executed when it calls the decorated function.
-``@intercept`` behaves this way.
+``@intercept`` behaves this way, too.
 
 If an ``@instead`` decorator does *not* call the decorated function and
 instead replaces it entirely, it **must** be specified first (at the bottom
@@ -575,7 +510,7 @@ of the stacked decorator pile), otherwise the decorators below it will not
 execute.
 
 For ``@before`` and ``@after``, it doesn't matter in what order the decorators
-are specified. ``@before`` is always called first, and then ``@after``.
+are specified. ``@before`` is always called first, and ``@after`` last.
 
 
 Class Decoration
@@ -590,8 +525,7 @@ static methods whether they are referenced via an instance or via a class
 reference. "Extras" specified at the class level persist across calls to
 different methods, allowing for things like a class level memoization
 dictionary (there's a very basic test in the test suite
-that demonstrates this pattern, and a convenient memoization decorator
-is scheduled for the next release!).
+that demonstrates this pattern).
 
 If you'd prefer that the decorator not apply to class and static methods,
 set the ``instance_methods_only=True`` when decorating the class.
@@ -601,7 +535,7 @@ mind that the decorator will be triggered when the class is instantiated,
 and that, if the decorator replaces or alters the return, that return will
 replace the instantiated class. With those caveats in mind, setting
 ``implicit_method_decoration=False`` when decorating a class enables that
-funcitonality.
+functionality.
 
 .. note::
 
@@ -651,20 +585,20 @@ serious function.
 
 .. note::
     Because kwargs are mutable, they can be updated even if the function
-    passed to before doesn't return anything.
+    passed to `before` doesn't return anything.
 
 .. code:: python
 
     from pydecor import before
 
-    def spamify_func(args, kwargs):
+    def spamify_func(decorated):
         """Mess with the function arguments"""
-        args = tuple(['spam' for _ in args])
-        kwargs = {k: 'spam' for k in kwargs}
+        args = tuple(['spam' for _ in decorated.args])
+        kwargs = {k: 'spam' for k in decorated.kwargs}
         return args, kwargs
 
 
-    @before(spamify_func, pass_params=True)
+    @before(spamify_func)
     def serious_function(serious_string, serious_kwarg='serious'):
         """A very serious function"""
         print('A serious arg: {}'.format(serious_string))
@@ -683,9 +617,9 @@ Do Something with a Function's Return Value
 *******************************************
 
 Functions passed to ``@after`` receive the decorated function's return value
-by default. If ``@after`` returns None, the return value is sent back
-unchanged. However, if ``@after`` returns something, its return value is
-sent back as the return value of the function.
+as part of the `Decorated` instance. If ``@after`` returns None, the return
+value is sent back unchanged. However, if ``@after`` returns something,
+its return value is sent back as the return value of the function.
 
 In this example, we ensure that a function's return value has been thoroughly
 spammified.
@@ -694,9 +628,9 @@ spammified.
 
     from pydecor import after
 
-    def spamify_return(result):
+    def spamify_return(decorated):
         """Spamify the result of a function"""
-        return 'spam-spam-spam-spam-{}-spam-spam-spam-spam'.format(result)
+        return 'spam-spam-spam-spam-{}-spam-spam-spam-spam'.format(decorated.result)
 
 
     @after(spamify_return)
@@ -716,23 +650,24 @@ The output?
 Do Something Instead of a Function
 **********************************
 
-Functions passed to ``@instead`` by default receive the args and kwargs of
-the decorated function, along with a reference to that function. But, they
-don't *have* to receive anything. Maybe you want to skip a function when
-a certain condition is True, but you don't want to use ``pytest.skipif``,
-because ``pytest`` can't be a dependency of your production code for
-whatever reason.
+Functions passed to ``@instead`` also provide wrapped context via the
+`Decorated` object. But, if the `instead` callable does not call the
+wrapped function, it won't get called at all. Maybe you want to skip
+a function when a certain condition is True, but you don't want to use
+``pytest.skipif``, because ``pytest`` can't be a dependency of your
+production code for whatever reason.
 
 
 .. code:: python
 
     from pydecor import instead
 
-    def skip(args, kwargs, decorated, when=False):
+    def skip(decorated, when=False):
         if when:
             pass
         else:
-            return decorated(*args, **kwargs)
+            # Calling `decorated` calls the wrapped function.
+            return decorated(*decorated.args, **decorated.kwargs)
 
 
     @instead(skip, when=True)
@@ -773,19 +708,19 @@ custom, spoiler-bedecked logger instance.
 
 
     @log_call()
-    def get_schwifty(*args, **kwargs):
-        """Get schwifty in heeeeere"""
-        return "Gettin' Schwifty"
+    def get_lucky(*args, **kwargs):
+        """We're up all night 'till the sun."""
+        return "We're up all night for good fun."
 
 
-    get_schwifty('wubba', 'lubba', dub='dub')
+    get_lucky('Too far', 'to give up', who_we='are')
 
 
 And the output?
 
 .. code::
 
-    get_schwifty(*('wubba', 'lubba'), **{'dub': 'dub'}) -> Gettin' Schwifty
+    get_lucky(*('Too far', 'to give up'), **{'who_we': 'are'}) -> "We're up all night for good fun"
 
 
 Intercept an Exception and Re-raise a Custom One
@@ -916,13 +851,12 @@ the entire function, so it does not provide that fine-grained level of control.
 Roadmap
 -------
 
-1.2.0
-*****
+2.?
+***
 
 More Prête-à-porter Decorators
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* ``export`` - add the decorated item to ``__all__``
 * ``skipif`` - similar to py.test's decorator, skip the function if a
   provided condition is True
 
@@ -930,38 +864,12 @@ Let me know if you've got any idea for other decorators that would
 be nice to have!
 
 
-Typing Stubfiles
+Type Annotations
 ~~~~~~~~~~~~~~~~
 
-Right now type hints are provided via rst-style docstring specification.
-Although this format is supported by PyCharm, it does not conform to the
-type-hinting standard defined in `PEP 484`_.
-
-In order to better conform with the new standard (and to remain compatible
-with Python 2.7), stubfiles will be added for the ``1.1.0`` release,
-and docstring hints will be removed so that contributors don't have
-to adjust type specifications in two places.
-
-Build-process Updates
-~~~~~~~~~~~~~~~~~~~~~
-
-A more automated build process, because remembering all the steps to push a
-new version is a pain. This is marked as scheduled for a patch release,
-because it does not affect users at all, so a minor version bump would
-lead people on to thinking that some new functionality had been added, when
-it hadn't.
-
-
-2.0.0
-*****
-
-* Use of immutable ``Decorated`` object to pass information about the
-  deprecated function
-* Deprecation of ``pass_params``, ``pass_kwargs``, ``pass_decorated``,
-  ``pass_result``, ``unapck_extras``, and ``extras_key`` keyword
-  arguments to all decorators.
-* Better organization of documentation
-
+Now that we've dropped support for Python 2, we can use type annotations
+to properly annotate function inputs and return values and make them
+available to library authors.
 
 Contributing
 ------------
@@ -989,24 +897,84 @@ with respect.
 Tests
 *****
 
-Tests are fairly easy to run, with few dependencies. You'll need Python 2.7,
-3.4, and 3.6 installed on your system to run the full suite, as well as tox_
-in whatever environment or virtual environment you're using. From there, you
-should just be able to run ``tox``. The underlying test suite is `py.test`_,
-and any extra arguments passed to tox get sent along. For example, to
-send stdout/stderr to the console and stop on the first failure,
-``tox -- -sx``. You can also run `py.test`_ directly. If you do, make sure
-the deps specified in ``tox.ini`` are installed to your virtualenv, and
-install the package in development mode with ``pip install -e .``.
+Tests can be run with::
+
+   make test
+
+This will use whatever your local `python3` happens to be. If you have
+other pythons available, you can run::
+
+   make tox
+
+to try to run locally for all supported Python versions.
+
+If you have docker installed, you can run::
+
+   make test-docker-{version}  # e.g. make test-docker-3.6
+
+to pull down an appropriate Docker image and run tests inside of it. You can
+also run::
+
+   make test-docker
+
+to do this for all supported versions of Python.
 
 PRs that cause tests to fail will not be merged until tests pass.
 
-Any new functionality is expected to come with appropriate tests. That being
-said, the test suite is fairly complex, with lots of mocking and
-parametrization. Don't feel as though you have to follow this pattern when
-writing new tests! A bunch of simpler tests are just as good. If you have any
-questions, feel free to reach out to me via email at ``msplanchard`` ``@``
-``gmail`` or on Twitter as @msplanchard.
+Any new functionality is expected to come with appropriate tests.
+If you have any questions, feel free to reach out to me via email at
+``msplanchard`` ``@`` ``gmail`` or on GH via Issues.
+
+Autoformatting
+**************
+
+This project uses black_ for autoformatting. I recommend setting your editor
+up to format on save for this project, but you can also run::
+
+   make fmt
+
+to format everything.
+
+Linting
+*******
+
+Linting can be run with::
+
+   make lint
+
+Currently, linting verifies that there are:
+
+* No flake8 errors
+* No mypy errors
+* No pylint errors
+* No files that need be formatted
+
+You should ensure that `make lint` returns 0 before opening a PR.
+
+Docs
+****
+
+Docs are autogenerated via Sphinx. You can build them locally by running::
+
+   make docs
+
+You can then open `docs/_build/html/index.html` in your web browser of
+choice to see how the documentation will look with your changes.
+
+Deployment
+**********
+
+Deployment is handled through pushing tags. Any tag pushed to GH causes
+a push to PyPI if the current version is not yet present there.
+
+Pushing the appropriate tag is made easier through the use of::
+
+   VERSION=1.0.0 make distribute
+
+where `VERSION` obviously should be the current version. This will verify
+the specified version matches the package's current version, check to be
+sure that the most recent master is being distributed, prompt for a message,
+and create and push a signed tag of the format `v{version}`.
 
 
 Credits and Links
@@ -1014,13 +982,11 @@ Credits and Links
 
 * This project was started using my generic `project template`_
 * Tests are run with pytest_ and tox_
-* Mocking in Python 2.7 tests uses the `mock backport`_
-* Python 2/3 compatible exception raising via six_
-* The `typing backport`_ is used for Python2.7-3.4-compatible type definitions
 * Documentation built with sphinx_
 * Coverage information collected with coverage_
 * Pickling of objects provided via dill_
 
+.. _black: https://github.com/psf/black
 .. _`project template`: https://github.com/mplanchard/python_skeleton
 .. _pytest:
 .. _`py.test`: https://docs.pytest.org/en/latest/

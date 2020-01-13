@@ -27,7 +27,7 @@ class TestExport:
     def test_bad_type(self):
         """Passing something with no __module__ attribute is a TypeError."""
         with pytest.raises(TypeError):
-            export("foo")
+            export("foo")  # type: ignore
 
     def test_not_in_modules(self):
         """Calling in a non-imported context is an error."""
@@ -65,7 +65,7 @@ class TestExport:
         exec(module_code, module.__dict__)
 
         imported = importlib.import_module("my_module")
-        assert imported.__all__ == ["exported"]
+        assert imported.__all__ == ["exported"]  # type: ignore
 
     @pytest.mark.usefixtures("reset_modules")
     def test_imported_module_dynamic_append(self):
@@ -91,7 +91,7 @@ class TestExport:
         exec(module_code, module.__dict__)
 
         imported = importlib.import_module("my_module")
-        assert imported.__all__ == ["first", "exported"]
+        assert imported.__all__ == ["first", "exported"]  # type: ignore
 
     @pytest.mark.usefixtures("reset_modules")
     def test_imported_module_dynamic_append_tuple(self):
@@ -117,7 +117,7 @@ class TestExport:
         exec(module_code, module.__dict__)
 
         imported = importlib.import_module("my_module")
-        assert imported.__all__ == ("first", "exported")
+        assert imported.__all__ == ("first", "exported")  # type: ignore
 
     @pytest.mark.usefixtures("reset_modules")
     def test_export_idempotent_already_present(self):
@@ -141,7 +141,7 @@ class TestExport:
         exec(module_code, module.__dict__)
 
         imported = importlib.import_module("my_module")
-        assert imported.__all__ == ["exported"]
+        assert imported.__all__ == ["exported"]  # type: ignore
 
     @pytest.mark.usefixtures("reset_modules")
     def test_export_idempotent_multiple_calls(self):
@@ -164,14 +164,16 @@ class TestExport:
         exec(module_code, module.__dict__)
 
         imported = importlib.import_module("my_module")
-        assert imported.__all__ == ["exported"]
+        assert imported.__all__ == ["exported"]  # type: ignore
 
     @pytest.mark.usefixtures("reset_modules")
     def test_imported_module_static_no_all(self):
         """A module present in imports is manipulated correctly."""
         from .exports import no_all
 
-        assert no_all.__all__ == ["exported"]  # pylint: disable=no-member
+        # pylint: disable=no-member
+        assert no_all.__all__ == ["exported"]  # type: ignore
+        # pylint: enable=no-member
 
     @pytest.mark.usefixtures("reset_modules")
     def test_imported_module_static_list_all(self):
@@ -193,7 +195,7 @@ class TestExport:
         from .exports import class_export
 
         # pylint: disable=no-member
-        assert class_export.__all__ == ["Exported"]
+        assert class_export.__all__ == ["Exported"]  # type: ignore
 
     @pytest.mark.usefixtures("reset_modules")
     def test_imported_module_static_multi_export(self):
@@ -201,7 +203,7 @@ class TestExport:
         from .exports import multi_export
 
         # pylint: disable=no-member
-        assert multi_export.__all__ == ["Exported", "exported"]
+        assert multi_export.__all__ == ["Exported", "exported"]  # type: ignore
 
     @pytest.mark.usefixtures("reset_modules")
     def test_export_class_dynamic(self):
@@ -224,7 +226,7 @@ class TestExport:
         exec(module_code, module.__dict__)
 
         imported = importlib.import_module("my_module")
-        assert imported.__all__ == ["Exported"]
+        assert imported.__all__ == ["Exported"]  # type: ignore
 
     @pytest.mark.usefixtures("reset_modules")
     def test_export_instancemethod_fails(self):
