@@ -8,7 +8,7 @@ python:
   - "3.8"
   - "pypy3"
 
-script: make test-ci
+script: make test
 
 jobs:
   include:

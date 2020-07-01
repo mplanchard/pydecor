@@ -88,10 +88,6 @@ setup: venv-clean venv
 test: venv
 	$(VENV) $(TEST)
 
-# Simple test command with no plugins for CI compat
-make test-ci: venv
-	$(VENV) pytest --doctest-modules $(PKG_DIR) $(TEST_DIR)
-
 tox: venv
 	TOXENV=$(TOXENV) tox
 
