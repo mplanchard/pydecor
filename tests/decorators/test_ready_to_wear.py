@@ -71,6 +71,24 @@ def test_intercept(raises, catch, reraise, include_handler):
     wrapped.assert_called_once_with(*(), **{})
 
 
+def test_intercept_method():
+    """Test decorating an instance method with intercept."""
+
+    calls = []
+
+    def _handler(exc):
+        calls.append(exc)
+
+    class SomeClass:
+        @intercept(handler=_handler)
+        def it_raises(self, val):
+            raise ValueError(val)
+
+    SomeClass().it_raises("a")
+    assert len(calls) == 1
+    assert isinstance(calls[0], ValueError)
+
+
 def test_log_call():
     """Test the log_call decorator"""
     exp_logger = getLogger(__name__)

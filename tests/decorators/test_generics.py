@@ -317,12 +317,13 @@ class TestBefore:
             def to_call_static(*args):
                 tracker.append({4: args})
 
-        _ToDecorate().to_call(1, 2)
+        instance = _ToDecorate()
+        instance.to_call(1, 2)
         _ToDecorate().to_call_cls(3, 4)
         _ToDecorate().to_call_static(5, 6)
 
         assert len(tracker) == 6
-        assert tracker[0] == {1: (1, 2)}
+        assert tracker[0] == {1: (instance, 1, 2)}
         assert tracker[1] == {2: (1, 2)}
         assert tracker[2] == {1: (3, 4)}
         assert tracker[3] == {3: (3, 4)}
@@ -606,13 +607,14 @@ class TestAfter:
             def to_call_static(*args):
                 tracker.append({4: args})
 
-        _ToDecorate().to_call(1, 2)
+        instance = _ToDecorate()
+        instance.to_call(1, 2)
         _ToDecorate().to_call_cls(3, 4)
         _ToDecorate().to_call_static(5, 6)
 
         assert len(tracker) == 6
         assert tracker[0] == {2: (1, 2)}
-        assert tracker[1] == {1: (1, 2)}
+        assert tracker[1] == {1: (instance, 1, 2)}
         assert tracker[2] == {3: (3, 4)}
         assert tracker[3] == {1: (3, 4)}
         assert tracker[4] == {4: (5, 6)}
@@ -890,12 +892,13 @@ class TestInstead:
             def to_call_static(*args):
                 tracker.append({4: args})
 
-        _ToDecorate().to_call(1, 2)
+        instance = _ToDecorate()
+        instance.to_call(1, 2)
         _ToDecorate().to_call_cls(3, 4)
         _ToDecorate().to_call_static(5, 6)
 
         assert len(tracker) == 3
-        assert tracker[0] == {1: (1, 2)}
+        assert tracker[0] == {1: (instance, 1, 2)}
         assert tracker[1] == {1: (3, 4)}
         assert tracker[2] == {1: (5, 6)}
 
