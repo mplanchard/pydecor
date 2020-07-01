@@ -11,6 +11,7 @@ pylint;implementation_name=="cpython"
 coverage
 mock;python_version<"3.0"
 pytest>=4.3.1
-pytest-cov
+pytest-cov;implementation_name=="cpython"
+pytest-cov==2.8.1;implementation_name=="pypy"
 tox
 wheel
