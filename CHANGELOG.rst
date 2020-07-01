@@ -1,6 +1,12 @@
 Changelog
 =========
 
+2.0.1
+-----
+
+* Fix regression in `@intercept` decorator due to changes in how generic
+  decorators pass arguments in 2.0.0
+
 2.0.0
 -----
 
