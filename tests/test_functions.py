@@ -66,7 +66,7 @@ def test_interceptor(raises, catch, reraise, include_handler):
     if handler is not None and not will_catch:
         handler.assert_not_called()
 
-    wrapped.assert_called_once_with(*(), **{})
+    wrapped.assert_called_once_with(*(), **{})  # type: ignore
 
 
 def test_log_call():
@@ -88,4 +88,4 @@ def test_log_call():
         name="func", args=call_args, kwargs=call_kwargs, result=call_res
     )
 
-    exp_logger.debug.assert_called_once_with(exp_msg)  # type: ignore
+    exp_logger.debug.assert_called_once_with(exp_msg)
