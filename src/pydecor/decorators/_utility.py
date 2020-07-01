@@ -59,7 +59,7 @@ def get_fn_args(decorated, args):
             # types)
             if decor_name in cls_dict and isfunction(cls_dict[decor_name]):
                 # The first argument is probably a "self" variable
-                fn_args = args[1:]
+                fn_args = args
 
     return fn_args
 
