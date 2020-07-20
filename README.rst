@@ -181,7 +181,7 @@ Why PyDecor?
                 return decorated(*args, **kwargs)
             return wrapper
 
-        return decorated
+        return decorator
 
     @auth_decorator(request=requst)
     def some_view():
