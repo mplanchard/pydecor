@@ -125,7 +125,7 @@ Or make your own decorator with ``construct_decorator``
 
 .. code:: python
 
-    from flask import reques
+    from flask import request
     from pydecor import Decorated, construct_decorator
     from werkzeug.exceptions import Unauthorized
 
